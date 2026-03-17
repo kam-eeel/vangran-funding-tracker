@@ -2,5 +2,8 @@
 .venv
 tmp
 *.json
-*.db
+*.db*
 **/.DS_Store
+.claude
+.playwright-mcp
+*.png

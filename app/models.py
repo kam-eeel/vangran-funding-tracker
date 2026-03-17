@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import Optional
-from sqlalchemy import String, Text, Numeric, Date, func
+from sqlalchemy import Index, String, Text, Numeric, Date, func
 from sqlalchemy.orm import (
     DeclarativeBase, Mapped, mapped_column
 )
@@ -11,6 +11,13 @@ class Base(DeclarativeBase):
 
 class Record(Base):
     __tablename__ = "records"
+    __table_args__ = (
+        Index("ix_records_department", "department"),
+        Index("ix_records_program", "program_name"),
+        Index("ix_records_postal", "postal_code"),
+        Index("ix_records_amount", "amount"),
+        Index("ix_records_start_date", "start_date"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     ref_n: Mapped[str] = mapped_column(String)

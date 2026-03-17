@@ -1,0 +1,23 @@
+/* HTMX loading indicator */
+.htmx-indicator {
+    opacity: 0;
+    transition: opacity 150ms ease-in;
+}
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+    opacity: 1;
+}
+
+/* Chart containers */
+.chart-card {
+    position: relative;
+    min-height: 280px;
+}
+.chart-card canvas {
+    max-height: 320px;
+}
+
+/* Table rows */
+.record-row {
+    transition: background-color 80ms ease;
+}

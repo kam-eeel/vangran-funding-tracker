@@ -1,0 +1,120 @@
+{% set sort_icon_asc %}
+<svg class="w-3 h-3 inline-block ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+{% endset %}
+{% set sort_icon_desc %}
+<svg class="w-3 h-3 inline-block ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+{% endset %}
+
+{% macro sort_header(col, label, align='left') %}
+{% set next_dir = 'asc' if (sort == col and dir == 'desc') else 'desc' %}
+<th class="px-2.5 py-2 text-{{ align }} text-[10px] font-semibold uppercase tracking-wider cursor-pointer select-none whitespace-nowrap
+           text-gray-500 hover:text-primary
+           {% if sort == col %}text-primary{% endif %}"
+    hx-get="/explore/partials/table?sort={{ col }}&dir={{ next_dir }}"
+    hx-target="#records-table-container"
+    hx-include="#filter-form"
+    hx-indicator="#loading-bar"
+    hx-push-url="false">
+    {{ label }}{% if sort == col %}{% if dir == 'asc' %}{{ sort_icon_asc }}{% else %}{{ sort_icon_desc }}{% endif %}{% endif %}
+</th>
+{% endmacro %}
+
+<div class="flex items-center justify-between mb-2">
+    <p class="text-xs text-gray-500">
+        Showing
+        <span class="font-medium text-gray-900">{{ ((page - 1) * per_page) + 1 }}–{{ [page * per_page, total] | min }}</span>
+        of <span class="font-medium text-gray-900">{{ "{:,}".format(total) }}</span> contributions
+    </p>
+</div>
+
+<div class="bg-white rounded border border-gray-200 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+            <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                    {{ sort_header('ref_n', 'Ref #') }}
+                    {{ sort_header('recipient_name', 'Recipient') }}
+                    {{ sort_header('department', 'Department') }}
+                    {{ sort_header('program_name', 'Program') }}
+                    {{ sort_header('postal_code', 'Postal') }}
+                    {{ sort_header('amount', 'Amount', 'right') }}
+                    {{ sort_header('start_date', 'Start') }}
+                    {{ sort_header('end_date', 'End') }}
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for r in records %}
+                <tr class="record-row hover:bg-gray-50">
+                    <td class="px-2.5 py-1.5 text-gray-400 font-mono whitespace-nowrap">{{ r.ref_n }}</td>
+                    <td class="px-2.5 py-1.5 max-w-[180px] truncate text-gray-900" title="{{ r.recipient_name }}">{{ r.recipient_name }}</td>
+                    <td class="px-2.5 py-1.5 max-w-[160px] truncate text-gray-600" title="{{ r.department }}">{{ short_department(r.department) }}</td>
+                    <td class="px-2.5 py-1.5 max-w-[160px] truncate text-gray-600" title="{{ r.program_name }}">{{ r.program_name }}</td>
+                    <td class="px-2.5 py-1.5 whitespace-nowrap font-mono text-gray-500">{{ r.postal_code[:3] }}</td>
+                    <td class="px-2.5 py-1.5 text-right whitespace-nowrap font-mono font-medium
+                               {% if r.amount is not none and r.amount >= 0 %}text-accent-green{% else %}text-accent-red{% endif %}">
+                        {{ format_currency(r.amount) if r.amount is not none else '—' }}
+                    </td>
+                    <td class="px-2.5 py-1.5 whitespace-nowrap text-gray-400 font-mono">{{ r.start_date }}</td>
+                    <td class="px-2.5 py-1.5 whitespace-nowrap text-gray-400 font-mono">{{ r.end_date or '—' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="px-3 py-10 text-center text-gray-400">
+                        <p class="text-sm">No contributions found</p>
+                        <p class="text-xs mt-1">Try adjusting your filters</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if pages > 1 %}
+<nav class="flex items-center justify-center gap-1 mt-3">
+    {% macro page_btn(p, label=None, disabled=False) %}
+    <button {% if not disabled %}
+                hx-get="/explore/partials/table?page={{ p }}&sort={{ sort }}&dir={{ dir }}"
+                hx-target="#records-table-container"
+                hx-include="#filter-form"
+                hx-indicator="#loading-bar"
+                hx-push-url="false"
+            {% endif %}
+            class="px-2.5 py-1 text-xs rounded transition-colors
+                   {% if p == page %}bg-primary text-white{% elif disabled %}text-gray-300 cursor-not-allowed{% else %}text-gray-600 hover:bg-gray-100{% endif %}"
+            {% if disabled %}disabled{% endif %}>
+        {{ label or p }}
+    </button>
+    {% endmacro %}
+
+    {{ page_btn(page - 1, '‹ Prev', page <= 1) }}
+
+    {% if page > 3 %}
+        {{ page_btn(1) }}
+        {% if page > 4 %}<span class="px-1 text-gray-300 text-xs">…</span>{% endif %}
+    {% endif %}
+
+    {% for p in range([1, page - 2] | max, [pages, page + 2] | min + 1) %}
+        {{ page_btn(p) }}
+    {% endfor %}
+
+    {% if page < pages - 2 %}
+        {% if page < pages - 3 %}<span class="px-1 text-gray-300 text-xs">…</span>{% endif %}
+        {{ page_btn(pages) }}
+    {% endif %}
+
+    {{ page_btn(page + 1, 'Next ›', page >= pages) }}
+</nav>
+{% endif %}
+
+<script>
+    (function() {
+        const form = document.getElementById('filter-form');
+        if (form) {
+            const sortInput = form.querySelector('input[name="sort"]');
+            const dirInput = form.querySelector('input[name="dir"]');
+            if (sortInput) sortInput.value = '{{ sort }}';
+            if (dirInput) dirInput.value = '{{ dir }}';
+        }
+    })();
+</script>

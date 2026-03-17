@@ -1,5 +1,6 @@
 from datetime import date
-from sqlalchemy import create_engine, select, func, event
+from math import ceil
+from sqlalchemy import create_engine, select, func, event, cast, String
 from sqlalchemy.orm import Session, sessionmaker, DeclarativeBase
 from contextlib import contextmanager
 
@@ -83,3 +84,260 @@ class RecordRepo:
                 )
             )
             return s.execute(stmt).all()
+
+
+class RecordQueryService:
+    """Read-only query service for the web UI. All values are dynamically
+    computed from the database — nothing is hardcoded."""
+
+    SORTABLE_COLUMNS = {
+        "ref_n": Record.ref_n,
+        "recipient_name": Record.recipient_name,
+        "postal_code": Record.postal_code,
+        "program_name": Record.program_name,
+        "amount": Record.amount,
+        "start_date": Record.start_date,
+        "end_date": Record.end_date,
+        "department": Record.department,
+    }
+
+    def __init__(self, db: Database):
+        self.db = db
+
+    @staticmethod
+    def _short_department(name: str) -> str:
+        """Extract the English department name before the '|' separator."""
+        if "|" in name:
+            return name.split("|")[0].strip()
+        if " - " in name:
+            return name.rsplit(" - ", 1)[0].strip()
+        return name
+
+    def get_kpis(self) -> dict:
+        with self.db.session() as s:
+            row = s.execute(
+                select(
+                    func.coalesce(func.sum(Record.amount), 0).label("total_funding"),
+                    func.count(Record.id).label("record_count"),
+                    func.coalesce(func.avg(Record.amount), 0).label("avg_amount"),
+                    func.count(func.distinct(Record.program_name)).label("program_count"),
+                    func.count(func.distinct(Record.department)).label("department_count"),
+                )
+            ).one()
+            return {
+                "total_funding": float(row.total_funding),
+                "record_count": int(row.record_count),
+                "avg_amount": float(row.avg_amount),
+                "program_count": int(row.program_count),
+                "department_count": int(row.department_count),
+            }
+
+    def get_funding_by_department(self, limit: int = 10) -> list[dict]:
+        with self.db.session() as s:
+            rows = s.execute(
+                select(
+                    Record.department.label("name"),
+                    func.sum(Record.amount).label("total"),
+                    func.count(Record.id).label("count"),
+                )
+                .group_by(Record.department)
+                .order_by(func.sum(Record.amount).desc())
+                .limit(limit)
+            ).all()
+            return [
+                {
+                    "name": r.name,
+                    "short_name": self._short_department(r.name),
+                    "total": float(r.total),
+                    "count": int(r.count),
+                }
+                for r in rows
+            ]
+
+    def get_funding_by_program(self, limit: int = 10) -> list[dict]:
+        with self.db.session() as s:
+            rows = s.execute(
+                select(
+                    Record.program_name.label("name"),
+                    func.sum(Record.amount).label("total"),
+                    func.count(Record.id).label("count"),
+                )
+                .group_by(Record.program_name)
+                .order_by(func.sum(Record.amount).desc())
+                .limit(limit)
+            ).all()
+
+            # Compute "Other" from total
+            total_all_raw = s.execute(
+                select(func.coalesce(func.sum(Record.amount), 0))
+            ).scalar()
+            total_all_val: float = float(str(total_all_raw)) if total_all_raw else 0.0
+            top_total = sum(float(r.total) for r in rows)
+            other_total = total_all_val - top_total
+            top_count = sum(int(r.count) for r in rows)
+            all_count_raw = s.execute(select(func.count(Record.id))).scalar()
+            all_count_val: int = int(all_count_raw) if all_count_raw else 0
+            other_count = all_count_val - top_count
+
+            result = [
+                {"name": r.name, "total": float(r.total), "count": int(r.count)}
+                for r in rows
+            ]
+            if other_total > 0:
+                result.append({"name": "Other", "total": other_total, "count": other_count})
+            return result
+
+    def get_funding_by_postal_code(self) -> list[dict]:
+        fsa = func.upper(func.substr(Record.postal_code, 1, 3)).label("fsa")
+        with self.db.session() as s:
+            rows = s.execute(
+                select(
+                    fsa,
+                    func.sum(Record.amount).label("total"),
+                    func.count(Record.id).label("count"),
+                )
+                .group_by(fsa)
+                .order_by(func.sum(Record.amount).desc())
+            ).all()
+            return [
+                {"fsa": r.fsa, "total": float(r.total), "count": int(r.count)}
+                for r in rows
+            ]
+
+    def get_funding_timeline(self) -> list[dict]:
+        year_expr = func.substr(cast(Record.start_date, String), 1, 4).label("year")
+        with self.db.session() as s:
+            rows = s.execute(
+                select(
+                    year_expr,
+                    func.sum(Record.amount).label("total"),
+                    func.count(Record.id).label("count"),
+                )
+                .group_by(year_expr)
+                .order_by(year_expr)
+            ).all()
+            return [
+                {"year": r.year, "total": float(r.total), "count": int(r.count)}
+                for r in rows
+            ]
+
+    def get_filter_options(self) -> dict:
+        with self.db.session() as s:
+            departments = [
+                r[0] for r in s.execute(
+                    select(Record.department).distinct().order_by(Record.department)
+                ).all()
+            ]
+            programs = [
+                r[0] for r in s.execute(
+                    select(Record.program_name).distinct().order_by(Record.program_name)
+                ).all() if r[0]
+            ]
+            fsa = func.upper(func.substr(Record.postal_code, 1, 3))
+            postal_codes = [
+                r[0] for r in s.execute(
+                    select(fsa.label("fsa")).distinct().order_by(fsa)
+                ).all()
+            ]
+            date_range = s.execute(
+                select(
+                    func.min(Record.start_date),
+                    func.max(Record.start_date),
+                )
+            ).one()
+            amount_range = s.execute(
+                select(
+                    func.min(Record.amount),
+                    func.max(Record.amount),
+                )
+            ).one()
+            return {
+                "departments": departments,
+                "programs": programs,
+                "postal_codes": postal_codes,
+                "min_date": str(date_range[0]) if date_range[0] else "",
+                "max_date": str(date_range[1]) if date_range[1] else "",
+                "min_amount": float(amount_range[0]) if amount_range[0] else 0,
+                "max_amount": float(amount_range[1]) if amount_range[1] else 0,
+            }
+
+    def search_records(
+        self,
+        filters: dict | None = None,
+        sort: str = "amount",
+        direction: str = "desc",
+        page: int = 1,
+        per_page: int = 50,
+    ) -> dict:
+        filters = filters or {}
+        stmt = select(Record)
+
+        # Apply filters dynamically
+        if filters.get("department"):
+            stmt = stmt.where(Record.department == filters["department"])
+        if filters.get("program"):
+            stmt = stmt.where(Record.program_name == filters["program"])
+        if filters.get("postal_code"):
+            stmt = stmt.where(func.upper(Record.postal_code).like(f"{filters['postal_code'].upper()}%"))
+        if filters.get("start_date_from"):
+            stmt = stmt.where(Record.start_date >= filters["start_date_from"])
+        if filters.get("start_date_to"):
+            stmt = stmt.where(Record.start_date <= filters["start_date_to"])
+        if filters.get("amount_min") is not None:
+            try:
+                stmt = stmt.where(Record.amount >= float(filters["amount_min"]))
+            except (ValueError, TypeError):
+                pass
+        if filters.get("amount_max") is not None:
+            try:
+                stmt = stmt.where(Record.amount <= float(filters["amount_max"]))
+            except (ValueError, TypeError):
+                pass
+        if filters.get("search"):
+            term = f"%{filters['search']}%"
+            stmt = stmt.where(
+                Record.recipient_name.ilike(term)
+                | Record.program_name.ilike(term)
+                | Record.ref_n.ilike(term)
+            )
+
+        # Sort — validated against allowlist
+        sort_col = self.SORTABLE_COLUMNS.get(sort, Record.amount)
+        if direction == "asc":
+            stmt = stmt.order_by(sort_col.asc())
+        else:
+            stmt = stmt.order_by(sort_col.desc())
+
+        with self.db.session() as s:
+            # Count total matching records (same WHERE, no LIMIT)
+            count_stmt = select(func.count()).select_from(stmt.subquery())
+            total = s.execute(count_stmt).scalar() or 0
+
+            # Paginate
+            pages = max(1, ceil(total / per_page))
+            page = max(1, min(page, pages))
+            offset = (page - 1) * per_page
+            rows = s.execute(stmt.limit(per_page).offset(offset)).scalars().all()
+
+            # Convert to dicts while session is open to avoid DetachedInstanceError
+            records = [
+                {
+                    "ref_n": r.ref_n,
+                    "recipient_name": r.recipient_name,
+                    "postal_code": r.postal_code,
+                    "program_name": r.program_name,
+                    "amount": float(str(r.amount)) if r.amount is not None else None,
+                    "start_date": str(r.start_date) if r.start_date else None,
+                    "end_date": str(r.end_date) if r.end_date else None,
+                    "department": r.department,
+                }
+                for r in rows
+            ]
+
+            return {
+                "records": records,
+                "total": total,
+                "page": page,
+                "pages": pages,
+                "per_page": per_page,
+            }
