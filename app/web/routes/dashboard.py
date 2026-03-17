@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from app.db import RecordQueryService
+from app.geocoding import geocode_record
 from app.web.deps import get_query_service, get_templates
 
 router = APIRouter()
@@ -148,6 +149,36 @@ def chart_timeline(
     }
 
 
+@router.get("/api/map/records")
+def map_records(
+    qs: RecordQueryService = Depends(get_query_service),
+    department: str | None = None,
+    program: str | None = None,
+    postal_code: str | None = None,
+    start_date_from: str | None = None,
+    start_date_to: str | None = None,
+    amount_min: str | None = None,
+    amount_max: str | None = None,
+    search: str | None = None,
+):
+    filters = _build_filters(department, program, postal_code, start_date_from, start_date_to, amount_min, amount_max, search)
+    records = qs.get_map_records(filters=filters)
+    result = []
+    for r in records:
+        coords = geocode_record(r["postal_code"], r["id"])
+        if coords is None:
+            continue
+        result.append({
+            "id": r["id"],
+            "recipient_name": r["recipient_name"],
+            "postal_code": r["postal_code"],
+            "amount": r["amount"],
+            "lat": coords[0],
+            "lng": coords[1],
+        })
+    return {"records": result}
+
+
 @router.get("/chart/{chart_type}", response_class=HTMLResponse)
 def chart_expand_page(
     chart_type: str,
@@ -163,10 +194,15 @@ def chart_expand_page(
     amount_max: str | None = None,
     search: str | None = None,
 ):
-    valid = {"department", "program", "postal", "timeline"}
+    valid = {"department", "program", "postal", "timeline", "map"}
     if chart_type not in valid:
         from fastapi import HTTPException
         raise HTTPException(status_code=404)
+    if chart_type == "map":
+        return templates.TemplateResponse("map_view.html", {
+            "request": request,
+            "title": "Funding Map",
+        })
     filters = _build_filters(department, program, postal_code, start_date_from, start_date_to, amount_min, amount_max, search)
     filter_options = qs.get_filter_options()
     titles = {

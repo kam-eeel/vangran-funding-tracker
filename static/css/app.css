@@ -17,6 +17,52 @@
     max-height: 320px;
 }
 
+/* Map container */
+#map-container {
+    height: 400px;
+    border-radius: 4px;
+    z-index: 0;
+}
+
+/* Leaflet popup overrides */
+.leaflet-tooltip {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* MarkerCluster color overrides */
+.marker-cluster-small {
+    background-color: rgba(215, 25, 32, 0.2);
+}
+.marker-cluster-small div {
+    background-color: rgba(215, 25, 32, 0.5);
+    color: #fff;
+    font-weight: 600;
+    font-size: 12px;
+}
+.marker-cluster-medium {
+    background-color: rgba(215, 25, 32, 0.3);
+}
+.marker-cluster-medium div {
+    background-color: rgba(215, 25, 32, 0.6);
+    color: #fff;
+    font-weight: 600;
+    font-size: 12px;
+}
+.marker-cluster-large {
+    background-color: rgba(215, 25, 32, 0.4);
+}
+.marker-cluster-large div {
+    background-color: rgba(215, 25, 32, 0.7);
+    color: #fff;
+    font-weight: 600;
+    font-size: 13px;
+}
+
 /* Table rows */
 .record-row {
     transition: background-color 80ms ease;

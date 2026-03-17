@@ -183,6 +183,28 @@ class RecordQueryService:
             )
         return stmt
 
+    def get_map_records(self, filters: dict | None = None) -> list[dict]:
+        """Return lightweight records for map plotting (id, name, postal_code, amount)."""
+        filters = filters or {}
+        with self.db.session() as s:
+            stmt = select(
+                Record.id,
+                Record.recipient_name,
+                Record.postal_code,
+                Record.amount,
+            )
+            stmt = self._apply_filters(stmt, filters)
+            rows = s.execute(stmt).all()
+            return [
+                {
+                    "id": row.id,
+                    "recipient_name": row.recipient_name,
+                    "postal_code": row.postal_code,
+                    "amount": float(str(row.amount)) if row.amount is not None else 0,
+                }
+                for row in rows
+            ]
+
     def get_funding_by_department(self, limit: int = 10, filters: dict | None = None) -> list[dict]:
         filters = filters or {}
         with self.db.session() as s:
