@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} — Vangran Funding Tracker{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <a href="/" class="text-gray-400 hover:text-gray-700 transition-colors">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-lg font-semibold">{{ title }}</h1>
+                <p class="text-xs text-gray-500 mt-0.5">All data — filter to narrow results</p>
+            </div>
+        </div>
+        <button id="filter-toggle"
+                onclick="document.getElementById('filter-sidebar').classList.toggle('hidden')"
+                class="lg:hidden px-3 py-1.5 rounded bg-white border border-gray-200 text-xs font-medium flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+            </svg>
+            Filters
+        </button>
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-4">
+        <aside id="filter-sidebar" class="hidden lg:block w-full lg:w-60 shrink-0">
+            {% include "partials/chart_filter_panel.html" %}
+        </aside>
+        <div class="flex-1 min-w-0 space-y-4">
+            <div class="bg-white rounded border border-gray-200 p-4" style="min-height: 520px;">
+                <canvas id="chart-main"></canvas>
+            </div>
+            <!-- Data table — rendered by JS for department/program only -->
+            <div id="data-table-container"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+(function () {
+    const PALETTE = [
+        '#d71920','#61afef','#98c379','#e5c07b','#56b6c2',
+        '#c678dd','#d19a66','#be5046','#4078f2','#50a14f',
+        '#c18401','#986801','#a626a4','#0184bc',
+    ];
+    const THEME = {
+        text: '#383a42', muted: '#a0a1a7', grid: '#e5e7eb',
+    };
+
+    function formatCurrency(value) {
+        const abs = Math.abs(value);
+        if (abs >= 1e9) return '$' + (value / 1e9).toFixed(2) + 'B';
+        if (abs >= 1e6) return '$' + (value / 1e6).toFixed(1) + 'M';
+        if (abs >= 1e3) return '$' + (value / 1e3).toFixed(0) + 'K';
+        return '$' + value.toFixed(0);
+    }
+
+    function tooltipCfg() {
+        return {
+            backgroundColor: '#fff',
+            titleColor: THEME.text,
+            bodyColor: THEME.text,
+            borderColor: THEME.grid,
+            borderWidth: 1,
+            padding: 8,
+            cornerRadius: 4,
+            displayColors: true,
+            titleFont: { size: 12 },
+            bodyFont: { size: 11 },
+        };
+    }
+
+    // Build query string from current page URL params
+    const urlParams = new URLSearchParams(window.location.search);
+
+    async function loadChart() {
+        const chartType = {{ chart_type | tojson }};
+        const canvas = document.getElementById('chart-main');
+
+        let endpoint, data, chartCfg;
+
+        if (chartType === 'department') {
+            urlParams.set('limit', 0);
+            data = await fetch('/api/charts/department?' + urlParams).then(r => r.json());
+            chartCfg = {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{ data: data.data, backgroundColor: PALETTE.slice(0, data.labels.length).map((c, i) => PALETTE[i % PALETTE.length]), borderRadius: 2, borderSkipped: false }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { ...tooltipCfg(), callbacks: {
+                            title: (items) => data.full_names[items[0].dataIndex],
+                            label: (item) => `  ${formatCurrency(item.raw)}  ·  ${data.counts[item.dataIndex].toLocaleString()} contributions`,
+                        }}
+                    },
+                    scales: {
+                        x: { grid: { color: THEME.grid }, ticks: { callback: v => formatCurrency(v), color: THEME.muted, font: { size: 10 } } },
+                        y: { grid: { display: false }, ticks: { color: THEME.text, font: { size: 10 } } }
+                    }
+                }
+            };
+            // Size canvas height proportional to number of rows
+            canvas.parentElement.style.minHeight = Math.max(400, data.labels.length * 28 + 60) + 'px';
+
+        } else if (chartType === 'program') {
+            urlParams.set('limit', 0);
+            data = await fetch('/api/charts/program?' + urlParams).then(r => r.json());
+            chartCfg = {
+                type: 'doughnut',
+                data: {
+                    labels: data.labels,
+                    datasets: [{ data: data.data, backgroundColor: data.labels.map((_, i) => PALETTE[i % PALETTE.length]), borderWidth: 1, borderColor: '#fff', hoverOffset: 4 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '50%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: THEME.text, padding: 6, usePointStyle: true, pointStyleWidth: 8, font: { size: 10 } }
+                        },
+                        tooltip: { ...tooltipCfg(), callbacks: {
+                            label: (item) => `  ${formatCurrency(item.raw)}  ·  ${data.counts[item.dataIndex].toLocaleString()} contributions`,
+                        }}
+                    }
+                }
+            };
+
+        } else if (chartType === 'timeline') {
+            data = await fetch('/api/charts/timeline?' + urlParams).then(r => r.json());
+            chartCfg = {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        { label: 'Funding', data: data.amounts, borderColor: '#d71920', backgroundColor: 'rgba(215,25,32,0.08)', fill: true, tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2, yAxisID: 'y' },
+                        { label: 'Contributions', data: data.counts, borderColor: '#61afef', backgroundColor: 'transparent', fill: false, tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2, borderDash: [4, 2], yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { labels: { color: THEME.text, usePointStyle: true, font: { size: 10 } } },
+                        tooltip: { ...tooltipCfg(), callbacks: {
+                            label: (item) => item.datasetIndex === 0
+                                ? `  Funding: ${formatCurrency(item.raw)}`
+                                : `  Contributions: ${item.raw.toLocaleString()}`,
+                        }}
+                    },
+                    scales: {
+                        x: { grid: { color: THEME.grid }, ticks: { color: THEME.muted, font: { size: 10 } } },
+                        y: { type: 'linear', position: 'left', grid: { color: THEME.grid }, ticks: { callback: v => formatCurrency(v), color: THEME.muted, font: { size: 10 } }, title: { display: true, text: 'Amount', color: THEME.muted, font: { size: 10 } } },
+                        y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: THEME.muted, font: { size: 10 } }, title: { display: true, text: 'Count', color: THEME.muted, font: { size: 10 } } }
+                    }
+                }
+            };
+
+        } else if (chartType === 'postal') {
+            data = await fetch('/api/charts/postal?' + urlParams).then(r => r.json());
+            chartCfg = {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{ data: data.data, backgroundColor: data.labels.map((_, i) => PALETTE[i % PALETTE.length]), borderRadius: 2, borderSkipped: false }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { ...tooltipCfg(), callbacks: {
+                            label: (item) => `  ${formatCurrency(item.raw)}  ·  ${data.counts[item.dataIndex].toLocaleString()} contributions`,
+                        }}
+                    },
+                    scales: {
+                        y: { grid: { color: THEME.grid }, ticks: { callback: v => formatCurrency(v), color: THEME.muted, font: { size: 10 } } },
+                        x: { grid: { display: false }, ticks: { color: THEME.text, font: { size: 11, weight: 'bold' } } }
+                    }
+                }
+            };
+        }
+
+        Chart.defaults.color = THEME.text;
+        Chart.defaults.borderColor = THEME.grid;
+        Chart.defaults.font.family = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+        Chart.defaults.font.size = 11;
+
+        new Chart(canvas, chartCfg);
+
+        if (chartType === 'department' || chartType === 'program') {
+            renderTable(data, chartType);
+        }
+    }
+
+    function renderTable(data, chartType) {
+        const container = document.getElementById('data-table-container');
+        const nameKey = chartType === 'department' ? 'full_names' : 'labels';
+        const nameLabel = chartType === 'department' ? 'Department' : 'Program';
+
+        // Build rows array: [{name, total, count}]
+        let rows = data[nameKey].map((name, i) => ({
+            name,
+            total: data.data[i],
+            count: data.counts[i],
+        }));
+
+        let sortCol = 'total';
+        let sortDir = 'desc';
+
+        function sorted() {
+            return [...rows].sort((a, b) => {
+                const av = a[sortCol], bv = b[sortCol];
+                if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+                return sortDir === 'asc' ? av - bv : bv - av;
+            });
+        }
+
+        function icon(col) {
+            if (sortCol !== col) return '';
+            return sortDir === 'asc'
+                ? '<svg class="w-3 h-3 inline-block ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>'
+                : '<svg class="w-3 h-3 inline-block ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
+        }
+
+        function totalFunding() {
+            return rows.reduce((s, r) => s + r.total, 0);
+        }
+
+        function render() {
+            const total = totalFunding();
+            const thCls = (col, align='left') =>
+                `px-3 py-2 text-${align} text-[10px] font-semibold uppercase tracking-wider cursor-pointer select-none whitespace-nowrap text-gray-500 hover:text-primary ${sortCol === col ? 'text-primary' : ''}`;
+
+            const tbody = sorted().map(r => {
+                const pct = total > 0 ? (r.total / total * 100).toFixed(1) : '0.0';
+                return `<tr class="hover:bg-gray-50 border-b border-gray-100">
+                    <td class="px-3 py-2 text-xs text-gray-800 break-words max-w-xs">${r.name || '—'}</td>
+                    <td class="px-3 py-2 text-xs text-right font-mono font-medium text-accent-green whitespace-nowrap">${formatCurrency(r.total)}</td>
+                    <td class="px-3 py-2 text-xs text-right font-mono text-gray-500 whitespace-nowrap">${r.count.toLocaleString()}</td>
+                    <td class="px-3 py-2 text-xs text-right font-mono text-gray-400 whitespace-nowrap">${pct}%</td>
+                </tr>`;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="bg-white rounded border border-gray-200 overflow-hidden">
+                    <table class="w-full text-xs">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="${thCls('name')}" data-col="name">${nameLabel} ${icon('name')}</th>
+                                <th class="${thCls('total','right')}" data-col="total">Total Funding ${icon('total')}</th>
+                                <th class="${thCls('count','right')}" data-col="count">Contributions ${icon('count')}</th>
+                                <th class="${thCls('total','right')}">% of Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tbody}</tbody>
+                    </table>
+                </div>`;
+
+            container.querySelectorAll('th[data-col]').forEach(th => {
+                th.addEventListener('click', () => {
+                    const col = th.dataset.col;
+                    if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+                    else { sortCol = col; sortDir = col === 'name' ? 'asc' : 'desc'; }
+                    render();
+                });
+            });
+        }
+
+        render();
+    }
+
+    document.addEventListener('DOMContentLoaded', loadChart);
+})();
+</script>
+{% endblock %}

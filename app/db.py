@@ -132,18 +132,49 @@ class RecordQueryService:
                 "department_count": int(row.department_count),
             }
 
-    def get_funding_by_department(self, limit: int = 10) -> list[dict]:
+    def _apply_filters(self, stmt, filters: dict):
+        """Apply common filter params to a SELECT statement."""
+        if filters.get("department"):
+            stmt = stmt.where(Record.department == filters["department"])
+        if filters.get("program"):
+            stmt = stmt.where(Record.program_name == filters["program"])
+        if filters.get("postal_code"):
+            stmt = stmt.where(func.upper(Record.postal_code).like(f"{filters['postal_code'].upper()}%"))
+        if filters.get("start_date_from"):
+            stmt = stmt.where(Record.start_date >= filters["start_date_from"])
+        if filters.get("start_date_to"):
+            stmt = stmt.where(Record.start_date <= filters["start_date_to"])
+        if filters.get("amount_min") is not None:
+            try:
+                stmt = stmt.where(Record.amount >= float(filters["amount_min"]))
+            except (ValueError, TypeError):
+                pass
+        if filters.get("amount_max") is not None:
+            try:
+                stmt = stmt.where(Record.amount <= float(filters["amount_max"]))
+            except (ValueError, TypeError):
+                pass
+        if filters.get("search"):
+            term = f"%{filters['search']}%"
+            stmt = stmt.where(
+                Record.recipient_name.ilike(term)
+                | Record.program_name.ilike(term)
+                | Record.ref_n.ilike(term)
+            )
+        return stmt
+
+    def get_funding_by_department(self, limit: int = 10, filters: dict | None = None) -> list[dict]:
+        filters = filters or {}
         with self.db.session() as s:
-            rows = s.execute(
-                select(
-                    Record.department.label("name"),
-                    func.sum(Record.amount).label("total"),
-                    func.count(Record.id).label("count"),
-                )
-                .group_by(Record.department)
-                .order_by(func.sum(Record.amount).desc())
-                .limit(limit)
-            ).all()
+            stmt = select(
+                Record.department.label("name"),
+                func.sum(Record.amount).label("total"),
+                func.count(Record.id).label("count"),
+            ).group_by(Record.department).order_by(func.sum(Record.amount).desc())
+            stmt = self._apply_filters(stmt, filters)
+            if limit:
+                stmt = stmt.limit(limit)
+            rows = s.execute(stmt).all()
             return [
                 {
                     "name": r.name,
@@ -154,30 +185,35 @@ class RecordQueryService:
                 for r in rows
             ]
 
-    def get_funding_by_program(self, limit: int = 10) -> list[dict]:
+    def get_funding_by_program(self, limit: int = 10, filters: dict | None = None) -> list[dict]:
+        filters = filters or {}
         with self.db.session() as s:
-            rows = s.execute(
-                select(
-                    Record.program_name.label("name"),
-                    func.sum(Record.amount).label("total"),
-                    func.count(Record.id).label("count"),
-                )
-                .group_by(Record.program_name)
-                .order_by(func.sum(Record.amount).desc())
-                .limit(limit)
-            ).all()
+            stmt = select(
+                Record.program_name.label("name"),
+                func.sum(Record.amount).label("total"),
+                func.count(Record.id).label("count"),
+            ).group_by(Record.program_name).order_by(func.sum(Record.amount).desc())
+            stmt = self._apply_filters(stmt, filters)
+            if limit:
+                stmt = stmt.limit(limit)
+            rows = s.execute(stmt).all()
 
-            # Compute "Other" from total
-            total_all_raw = s.execute(
-                select(func.coalesce(func.sum(Record.amount), 0))
-            ).scalar()
-            total_all_val: float = float(str(total_all_raw)) if total_all_raw else 0.0
-            top_total = sum(float(r.total) for r in rows)
-            other_total = total_all_val - top_total
-            top_count = sum(int(r.count) for r in rows)
-            all_count_raw = s.execute(select(func.count(Record.id))).scalar()
-            all_count_val: int = int(all_count_raw) if all_count_raw else 0
-            other_count = all_count_val - top_count
+            # Compute "Other" only when using a limit
+            if limit:
+                total_stmt = select(func.coalesce(func.sum(Record.amount), 0))
+                total_stmt = self._apply_filters(total_stmt, filters)
+                total_all_val = float(str(s.execute(total_stmt).scalar() or 0))
+                top_total = sum(float(r.total) for r in rows)
+                other_total = total_all_val - top_total
+
+                count_stmt = select(func.count(Record.id))
+                count_stmt = self._apply_filters(count_stmt, filters)
+                all_count_val = int(s.execute(count_stmt).scalar() or 0)
+                top_count = sum(int(getattr(r, "count")) for r in rows)
+                other_count = all_count_val - top_count
+            else:
+                other_total = 0
+                other_count = 0
 
             result = [
                 {"name": r.name, "total": float(r.total), "count": int(r.count)}
@@ -187,35 +223,33 @@ class RecordQueryService:
                 result.append({"name": "Other", "total": other_total, "count": other_count})
             return result
 
-    def get_funding_by_postal_code(self) -> list[dict]:
+    def get_funding_by_postal_code(self, filters: dict | None = None) -> list[dict]:
+        filters = filters or {}
         fsa = func.upper(func.substr(Record.postal_code, 1, 3)).label("fsa")
         with self.db.session() as s:
-            rows = s.execute(
-                select(
-                    fsa,
-                    func.sum(Record.amount).label("total"),
-                    func.count(Record.id).label("count"),
-                )
-                .group_by(fsa)
-                .order_by(func.sum(Record.amount).desc())
-            ).all()
+            stmt = select(
+                fsa,
+                func.sum(Record.amount).label("total"),
+                func.count(Record.id).label("count"),
+            ).group_by(fsa).order_by(func.sum(Record.amount).desc())
+            stmt = self._apply_filters(stmt, filters)
+            rows = s.execute(stmt).all()
             return [
-                {"fsa": r.fsa, "total": float(r.total), "count": int(r.count)}
+                {"fsa": r.fsa, "total": float(r.total), "count": int(getattr(r, "count"))}
                 for r in rows
             ]
 
-    def get_funding_timeline(self) -> list[dict]:
+    def get_funding_timeline(self, filters: dict | None = None) -> list[dict]:
+        filters = filters or {}
         year_expr = func.substr(cast(Record.start_date, String), 1, 4).label("year")
         with self.db.session() as s:
-            rows = s.execute(
-                select(
-                    year_expr,
-                    func.sum(Record.amount).label("total"),
-                    func.count(Record.id).label("count"),
-                )
-                .group_by(year_expr)
-                .order_by(year_expr)
-            ).all()
+            stmt = select(
+                year_expr,
+                func.sum(Record.amount).label("total"),
+                func.count(Record.id).label("count"),
+            ).group_by(year_expr).order_by(year_expr)
+            stmt = self._apply_filters(stmt, filters)
+            rows = s.execute(stmt).all()
             return [
                 {"year": r.year, "total": float(r.total), "count": int(r.count)}
                 for r in rows

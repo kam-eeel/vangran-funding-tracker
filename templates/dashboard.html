@@ -1,37 +1,134 @@
-{% extends "base.html" %}
-
-{% block title %}Dashboard — Vangran Funding Tracker{% endblock %}
-
-{% block content %}
+{% extends "base.html" %} {% block title %}Dashboard — Vangran Funding Tracker{%
+endblock %} {% block content %}
 <div class="space-y-5">
-    <div>
-        <h1 class="text-lg font-semibold">Dashboard</h1>
-        <p class="text-xs text-gray-500 mt-0.5">Federal funding overview — Vancouver</p>
-    </div>
+  <div>
+    <h1 class="text-lg font-semibold">Dashboard</h1>
+    <p class="text-xs text-gray-500 mt-0.5">
+      Federal funding overview — Vancouver Granville
+    </p>
+  </div>
 
-    {% include "partials/kpi_cards.html" %}
+  {% include "partials/kpi_cards.html" %}
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="chart-card bg-white rounded border border-gray-200 p-4">
-            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Funding by Department</h3>
-            <canvas id="chart-department"></canvas>
-        </div>
-        <div class="chart-card bg-white rounded border border-gray-200 p-4">
-            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Funding by Program</h3>
-            <canvas id="chart-program"></canvas>
-        </div>
-        <div class="chart-card bg-white rounded border border-gray-200 p-4">
-            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Funding Timeline</h3>
-            <canvas id="chart-timeline"></canvas>
-        </div>
-        <div class="chart-card bg-white rounded border border-gray-200 p-4">
-            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Funding by Postal Code</h3>
-            <canvas id="chart-postal"></canvas>
-        </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="chart-card bg-white rounded border border-gray-200 p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3
+          class="text-xs font-semibold text-gray-500 uppercase tracking-wider"
+        >
+          Funding by Department
+        </h3>
+        <a
+          href="/chart/department"
+          class="text-gray-400 hover:text-primary transition-colors"
+          title="Expand"
+        >
+          <svg
+            class="w-3.5 h-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+            />
+          </svg>
+        </a>
+      </div>
+      <canvas id="chart-department"></canvas>
     </div>
+    <div class="chart-card bg-white rounded border border-gray-200 p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3
+          class="text-xs font-semibold text-gray-500 uppercase tracking-wider"
+        >
+          Funding by Program
+        </h3>
+        <a
+          href="/chart/program"
+          class="text-gray-400 hover:text-primary transition-colors"
+          title="Expand"
+        >
+          <svg
+            class="w-3.5 h-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+            />
+          </svg>
+        </a>
+      </div>
+      <canvas id="chart-program"></canvas>
+    </div>
+    <div class="chart-card bg-white rounded border border-gray-200 p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3
+          class="text-xs font-semibold text-gray-500 uppercase tracking-wider"
+        >
+          Funding Timeline
+        </h3>
+        <a
+          href="/chart/timeline"
+          class="text-gray-400 hover:text-primary transition-colors"
+          title="Expand"
+        >
+          <svg
+            class="w-3.5 h-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+            />
+          </svg>
+        </a>
+      </div>
+      <canvas id="chart-timeline"></canvas>
+    </div>
+    <div class="chart-card bg-white rounded border border-gray-200 p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3
+          class="text-xs font-semibold text-gray-500 uppercase tracking-wider"
+        >
+          Funding by Postal Code
+        </h3>
+        <a
+          href="/chart/postal"
+          class="text-gray-400 hover:text-primary transition-colors"
+          title="Expand"
+        >
+          <svg
+            class="w-3.5 h-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+            />
+          </svg>
+        </a>
+      </div>
+      <canvas id="chart-postal"></canvas>
+    </div>
+  </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script src="/static/js/charts.js"></script>
 {% endblock %}
