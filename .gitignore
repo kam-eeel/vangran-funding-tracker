@@ -1,9 +1,8 @@
-**/__pycache__
-.venv
-tmp
-*.json
-*.db*
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.mf/
 **/.DS_Store
 .claude
 .playwright-mcp
-*.png

@@ -1,6 +1,0 @@
-requests
-pydantic
-sqlalchemy
-fastapi
-uvicorn[standard]
-jinja2

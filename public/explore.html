@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Explore — Vangran Funding Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#d71920',
+            accent: { blue: '#4078f2', cyan: '#0184bc', green: '#50a14f', yellow: '#c18401', red: '#d71920', purple: '#a626a4', orange: '#986801' },
+          },
+          borderRadius: { DEFAULT: '4px' },
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body class="bg-white text-gray-900 min-h-screen flex flex-col">
+  <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-12">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded bg-primary flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <span class="font-semibold text-sm tracking-wide uppercase hidden sm:block">Vangran</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <a href="/" data-nav="/" class="px-3 py-1 rounded text-sm font-medium transition-colors text-gray-500 hover:text-gray-900 hover:bg-gray-100">Dashboard</a>
+          <a href="/explore.html" data-nav="/explore" class="px-3 py-1 rounded text-sm font-medium transition-colors text-gray-500 hover:text-gray-900 hover:bg-gray-100">Explore</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div id="loading-bar"><div class="bar"></div></div>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-lg font-semibold">Explore</h1>
+          <p class="text-xs text-gray-500 mt-0.5">Browse and filter all funding contributions</p>
+        </div>
+        <button id="filter-toggle" onclick="document.getElementById('filter-sidebar').classList.toggle('hidden')"
+                class="lg:hidden px-3 py-1.5 rounded bg-white border border-gray-200 text-xs font-medium flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+          Filters
+        </button>
+      </div>
+
+      <div class="flex flex-col lg:flex-row gap-4">
+        <aside id="filter-sidebar" class="hidden lg:block w-full lg:w-60 shrink-0">
+          <div class="bg-white rounded border border-gray-200 p-3 space-y-3">
+            <h3 class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Filters</h3>
+
+            <div>
+              <label class="block text-[10px] font-medium text-gray-500 mb-1">Search</label>
+              <input type="text" id="f-search" placeholder="Recipient, program, ref#" class="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-primary">
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-medium text-gray-500 mb-1">Department</label>
+              <select id="f-department" class="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-primary">
+                <option value="">All</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-medium text-gray-500 mb-1">Program</label>
+              <select id="f-program" class="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-primary">
+                <option value="">All</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-medium text-gray-500 mb-1">Postal Code</label>
+              <select id="f-postal" class="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-primary">
+                <option value="">All</option>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] font-medium text-gray-500 mb-1">Start From</label>
+                <input type="date" id="f-date-from" class="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-primary">
+              </div>
+              <div>
+                <label class="block text-[10px] font-medium text-gray-500 mb-1">Start To</label>
+                <input type="date" id="f-date-to" class="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-primary">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] font-medium text-gray-500 mb-1">Min Amount</label>
+                <input type="number" id="f-amount-min" placeholder="0" class="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-primary">
+              </div>
+              <div>
+                <label class="block text-[10px] font-medium text-gray-500 mb-1">Max Amount</label>
+                <input type="number" id="f-amount-max" placeholder="Any" class="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-primary">
+              </div>
+            </div>
+
+            <div class="flex gap-2 pt-1">
+              <button id="btn-apply" class="flex-1 px-3 py-1.5 bg-primary text-white text-xs font-medium rounded hover:bg-red-700 transition-colors">Apply</button>
+              <button id="btn-clear" class="flex-1 px-3 py-1.5 bg-white border border-gray-200 text-xs font-medium rounded hover:bg-gray-50 transition-colors">Clear</button>
+            </div>
+          </div>
+        </aside>
+
+        <div class="flex-1 min-w-0" id="records-table-container">
+          <!-- Table rendered by JS -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Record detail modal -->
+  <div id="record-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('record-modal').classList.add('hidden')"></div>
+    <div id="record-modal-content" class="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-white rounded shadow-xl p-5"></div>
+  </div>
+
+  <footer class="border-t border-gray-100 mt-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
+      <span>Data source: <a href="https://open.canada.ca/data/en/dataset/432527ab-7aac-45b5-81d6-7597107a7013" target="_blank" rel="noopener" class="underline hover:text-gray-600">Government of Canada — Proactive Disclosure of Grants and Contributions</a></span>
+      <span id="last-updated"></span>
+    </div>
+  </footer>
+
+  <script src="/js/shared.js"></script>
+  <script src="/js/explore.js"></script>
+</body>
+</html>

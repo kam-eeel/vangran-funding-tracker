@@ -1,0 +1,14 @@
+name = "vangran-funding-tracker"
+main = "src/index.ts"
+compatibility_date = "2025-03-14"
+
+[assets]
+directory = "./public"
+
+[triggers]
+crons = ["0 6 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vangran-funding"
+database_id = "YOUR_DATABASE_ID_HERE"

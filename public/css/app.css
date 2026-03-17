@@ -1,0 +1,24 @@
+.htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+.htmx-request .htmx-indicator, .loading .loading-bar { opacity: 1; }
+
+#loading-bar {
+  opacity: 0;
+  transition: opacity 200ms ease-in;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+}
+#loading-bar.active {
+  opacity: 1;
+}
+#loading-bar .bar {
+  height: 2px;
+  background: #d71920;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
