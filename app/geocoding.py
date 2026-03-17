@@ -1,6 +1,7 @@
 import os
 import json
 import time
+from typing import Any
 import requests
 from shapely.geometry import Point, Polygon
 
@@ -62,6 +63,7 @@ def get_coords_from_postal_code(postal_code: str) -> tuple[float, float]:
     the best available candidate rather than returning None.
     """
     query_fsa = postal_code.replace(" ", "").upper()[:3]
+    last_response: dict[str, Any] = {}
 
     for query in [postal_code, query_fsa]:
         params = {
@@ -74,10 +76,10 @@ def get_coords_from_postal_code(postal_code: str) -> tuple[float, float]:
         }
         r = requests.get(BASE_URL, params=params)
         r.raise_for_status()
-        js = json.loads(r.text)
+        last_response = json.loads(r.text)
         time.sleep(0.15)
 
-        for feature in js.get("features", []):
+        for feature in last_response.get("features", []):
             props = feature.get("properties", {})
             name = props.get("name", "").replace(" ", "").upper()
             full_addr = props.get("full_address", "").replace(" ", "").upper()
@@ -86,8 +88,8 @@ def get_coords_from_postal_code(postal_code: str) -> tuple[float, float]:
                 return coords["latitude"], coords["longitude"]
 
     # Last resort: return the top result from the FSA-only query
-    if js.get("features"):
-        coords = js["features"][0]["properties"]["coordinates"]
+    if last_response.get("features"):
+        coords = last_response["features"][0]["properties"]["coordinates"]
         return coords["latitude"], coords["longitude"]
 
     raise ValueError(f"Mapbox returned no results for postal code {postal_code!r}")

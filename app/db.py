@@ -1,32 +1,39 @@
-from datetime import date
+from __future__ import annotations
+
+from datetime import date, datetime
 from math import ceil
+from typing import Any
+from collections.abc import Generator
 from sqlalchemy import create_engine, select, func, event, cast, String, case
-from sqlalchemy.orm import Session, sessionmaker, DeclarativeBase
+from sqlalchemy.orm import Session, sessionmaker
 from contextlib import contextmanager
 
 from app.models import Base, Record
 
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Database:
-    def __init__(self, url: str = None):  # pyright: ignore[reportArgumentType]
+    def __init__(self, url: str | None = None) -> None:
         if url is None:
             db_path = os.environ.get("DB_PATH", "vangran.db")
             url = f"sqlite:///{db_path}"
         self.engine = create_engine(url)
         @event.listens_for(self.engine, "connect")
-        def pragmas(dbapi_conn, _):
+        def pragmas(dbapi_conn: Any, _: Any) -> None:
             c = dbapi_conn.cursor()
             c.execute("PRAGMA journal_mode=WAL")
             c.execute("PRAGMA foreign_keys=ON")
             c.close()
         self.SessionLocal = sessionmaker(bind=self.engine)
 
-    def create_tables(self):
+    def create_tables(self) -> None:
         Base.metadata.create_all(self.engine)
 
     @contextmanager
-    def session(self):
+    def session(self) -> Generator[Session, None, None]:
         s = self.SessionLocal()
         try:
             yield s
@@ -53,8 +60,9 @@ class RecordRepo:
         start_date: date,
         end_date: date,
         department: str,
-        additional_info: str
-    ):
+        additional_info: str,
+        **_: Any,
+    ) -> str:
         with self.db.session() as s:
             rcd = Record(
                 ref_n=ref_n,
@@ -73,11 +81,86 @@ class RecordRepo:
             s.flush()
             return rcd.ref_n
 
-    def get(self, _id: int):
+    # Fields compared during upsert to detect changes
+    UPSERT_FIELDS = (
+        "recipient_name", "postal_code", "program_name", "amount",
+        "start_date", "end_date", "department", "additional_info",
+    )
+
+    def upsert(
+        self,
+        ref_n: str,
+        recipient_name: str,
+        postal_code: str,
+        latitude: float,
+        longitude: float,
+        program_name: str,
+        amount: float,
+        start_date: date,
+        end_date: date,
+        department: str,
+        additional_info: str,
+    ) -> str:
+        """Upsert a record by composite key. Returns 'new', 'updated', or 'unchanged'.
+
+        Records arrive pre-geocoded and pre-filtered from collect_records().
+        """
+        incoming = {
+            "recipient_name": recipient_name,
+            "postal_code": postal_code,
+            "program_name": program_name,
+            "amount": amount,
+            "start_date": start_date,
+            "end_date": end_date,
+            "department": department,
+            "additional_info": additional_info,
+        }
+
+        with self.db.session() as s:
+            existing = s.execute(
+                select(Record).where(
+                    Record.ref_n == ref_n,
+                    Record.postal_code == postal_code,
+                    Record.start_date == start_date,
+                )
+            ).scalar_one_or_none()
+
+            if existing is None:
+                rcd = Record(
+                    ref_n=ref_n, latitude=latitude, longitude=longitude,
+                    **incoming,
+                )
+                s.add(rcd)
+                return "new"
+
+            # Detect field-level changes (postal_code & start_date are part of
+            # the lookup key so they can't change for a matched record)
+            changed_fields: dict[str, Any] = {}
+            for field in self.UPSERT_FIELDS:
+                if field in ("postal_code", "start_date"):
+                    continue
+                old_val: Any = getattr(existing, field)
+                new_val: Any = incoming[field]
+                if field == "amount":
+                    old_val = float(old_val) if old_val is not None else None
+                    new_val = float(new_val) if new_val is not None else None
+                if old_val != new_val:
+                    changed_fields[field] = new_val
+
+            if not changed_fields:
+                return "unchanged"
+
+            for field, value in changed_fields.items():
+                setattr(existing, field, value)
+
+            existing.last_updated = datetime.now()
+            return "updated"
+
+    def get(self, _id: int) -> Record | None:
         with self.db.session() as s:
             return s.get(Record, _id)
 
-    def dashboard(self):
+    def dashboard(self) -> list[Any]:
         with self.db.session() as s:
             stmt = (
                 select(
@@ -92,7 +175,7 @@ class RecordRepo:
                     Record.additional_info,
                 )
             )
-            return s.execute(stmt).all()
+            return list(s.execute(stmt).all())
 
 
 class RecordQueryService:

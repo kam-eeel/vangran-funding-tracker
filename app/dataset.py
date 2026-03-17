@@ -98,19 +98,30 @@ def download_by_postal():
             print(f"Download for postal code {fsa} failed. Error: {e}")
 
 
-def _parse_row(row: list) -> SourceRecord:
-    record = {
+_geocode_cache: dict[str, tuple[float, float]] = {}
+
+
+def _parse_row(row: list[str]) -> SourceRecord:
+    record: dict[str, str | float | None] = {
         field: value for field, value in zip(FIELDS, row)
     }
-    record["latitude"], record["longitude"] = get_coords_from_postal_code(record["recipient_postal_code"])
-    return SourceRecord(**record)
+    postal_code = record["recipient_postal_code"]
+    assert isinstance(postal_code, str)
+    if postal_code not in _geocode_cache:
+        _geocode_cache[postal_code] = get_coords_from_postal_code(postal_code)
+    record["latitude"], record["longitude"] = _geocode_cache[postal_code]
+    return SourceRecord(**record)  # type: ignore[arg-type]
 
 
 def collect_records(refresh: bool = False) -> list[SourceRecord]:
+    """Collect records from the Open Canada dataset.
+
+    Geocodes each record (cached per postal code) and filters by riding polygon.
+    """
     if refresh or not Path(TMP_DIR).exists():
         download_by_postal()
     inputs = os.listdir(TMP_DIR)
-    records = []
+    records: list[SourceRecord] = []
     n_files = len(inputs)
     coord_filter = date_filter = 0
     collected = total_records = 0
