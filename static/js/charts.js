@@ -24,6 +24,24 @@ const THEME = {
     }
 };
 
+function wrapLabel(label, maxWidth) {
+    if (label.length <= maxWidth) return label;
+    const words = label.split(' ');
+    const lines = [];
+    let current = '';
+    for (const word of words) {
+        const next = current ? current + ' ' + word : word;
+        if (next.length > maxWidth) {
+            if (current) lines.push(current);
+            current = word;
+        } else {
+            current = next;
+        }
+    }
+    if (current) lines.push(current);
+    return lines;
+}
+
 function formatCurrency(value) {
     const abs = Math.abs(value);
     if (abs >= 1e9) return '$' + (value / 1e9).toFixed(1) + 'B';
@@ -65,7 +83,7 @@ async function initCharts() {
         {
             type: 'bar',
             data: {
-                labels: deptRes.labels.map(l => l.length > 30 ? l.substring(0, 30) + '…' : l),
+                labels: deptRes.labels.map(l => wrapLabel(l, 18)),
                 datasets: [{
                     data: deptRes.data,
                     backgroundColor: PALETTE.slice(0, deptRes.labels.length),
