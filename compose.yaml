@@ -4,6 +4,8 @@ services:
     build: .
     expose:
       - 8000
+    ports:
+      - 100.109.30.53:8000:8000
     networks:
       - cloudflared-net-tn_demo
     volumes:
