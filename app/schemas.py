@@ -24,6 +24,8 @@ class SourceRecord(TypedDict):
     agreement_end_date: str
     owner_org: str
     owner_org_title: str
+    latitude: float
+    longitude: float
     recipient_operating_name: str | None
     research_organization_name: str | None
     recipient_country: str | None

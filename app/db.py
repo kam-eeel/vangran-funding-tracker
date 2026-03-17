@@ -9,7 +9,7 @@ from app.models import Base, Record
 import os
 
 class Database:
-    def __init__(self, url: str = None):
+    def __init__(self, url: str = None):  # pyright: ignore[reportArgumentType]
         if url is None:
             db_path = os.environ.get("DB_PATH", "vangran.db")
             url = f"sqlite:///{db_path}"
@@ -46,6 +46,8 @@ class RecordRepo:
         ref_n: str,
         recipient_name: str,
         postal_code: str,
+        latitude: float,
+        longitude: float,
         program_name: str,
         amount: float,
         start_date: date,
@@ -58,6 +60,8 @@ class RecordRepo:
                 ref_n=ref_n,
                 recipient_name=recipient_name,
                 postal_code=postal_code,
+                latitude=latitude,
+                longitude=longitude,
                 program_name=program_name,
                 amount=amount,
                 start_date=start_date,
@@ -200,7 +204,7 @@ class RecordQueryService:
                     "name": r.name,
                     "short_name": self._short_department(r.name),
                     "total": float(r.total),
-                    "count": int(r.count),
+                    "count": int(r.count),  # pyright: ignore[reportArgumentType]
                 }
                 for r in rows
             ]
@@ -236,7 +240,7 @@ class RecordQueryService:
                 other_count = 0
 
             result = [
-                {"name": r.name, "total": float(r.total), "count": int(r.count)}
+                {"name": r.name, "total": float(r.total), "count": int(r.count)}  # pyright: ignore[reportArgumentType]
                 for r in rows
             ]
             if other_total > 0:
@@ -271,7 +275,7 @@ class RecordQueryService:
             stmt = self._apply_filters(stmt, filters)
             rows = s.execute(stmt).all()
             return [
-                {"year": r.year, "total": float(r.total), "count": int(r.count)}
+                {"year": r.year, "total": float(r.total), "count": int(r.count)}  # pyright: ignore[reportArgumentType]
                 for r in rows
             ]
 

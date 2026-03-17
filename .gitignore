@@ -7,3 +7,4 @@ tmp
 .claude
 .playwright-mcp
 *.png
+.env

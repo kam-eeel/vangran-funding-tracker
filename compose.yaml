@@ -11,6 +11,8 @@ services:
     volumes:
       - db_data:/app/data
     restart: unless-stopped
+    environment:
+      - MAPBOX_ACCESS_TOKEN=${MAPBOX_ACCESS_TOKEN:-}
 
 volumes:
   db_data:
