@@ -68,6 +68,14 @@
         {% block content %}{% endblock %}
     </main>
 
+    <footer class="border-t border-gray-100 mt-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
+            <span>Data source: <a href="https://open.canada.ca/data/en/dataset/432527ab-7aac-45b5-81d6-7597107a7013" target="_blank" rel="noopener" class="underline hover:text-gray-600">Government of Canada — Proactive Disclosure of Grants and Contributions</a></span>
+            {% set lu = last_updated() %}
+            {% if lu %}<span>Last updated: {{ lu }}</span>{% endif %}
+        </div>
+    </footer>
+
     {% block scripts %}{% endblock %}
 </body>
 </html>

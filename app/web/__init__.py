@@ -18,7 +18,9 @@ def create_app() -> FastAPI:
     db.create_tables()
     app.state.db = db
     app.state.query_service = RecordQueryService(db)
-    app.state.templates = Jinja2Templates(directory=BASE_DIR / "templates")
+    templates = Jinja2Templates(directory=BASE_DIR / "templates")
+    templates.env.globals["last_updated"] = lambda: RecordQueryService(db).get_last_updated()
+    app.state.templates = templates
 
     app.include_router(dashboard.router)
     app.include_router(explore.router)

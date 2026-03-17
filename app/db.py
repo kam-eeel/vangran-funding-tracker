@@ -311,6 +311,11 @@ class RecordQueryService:
                 "max_amount": float(amount_range[1]) if amount_range[1] else 0,
             }
 
+    def get_last_updated(self) -> str | None:
+        with self.db.session() as s:
+            result = s.execute(select(func.max(Record.last_updated))).scalar()
+            return result.strftime("%-d %B %Y") if result else None
+
     def get_record_by_id(self, record_id: int) -> dict | None:
         with self.db.session() as s:
             r = s.get(Record, record_id)
