@@ -6,6 +6,7 @@ from pathlib import Path
 
 from app.schemas import RIDING_POSTAL_CODES
 from app.schemas import SourceRecord
+from app.geocoding import get_coords_from_postal_code, is_in_riding
 
 URL = "https://open.canada.ca/data/en/datastore/dump/1d15a62f-5656-49ad-8c88-f40ce689d831"
 
@@ -101,15 +102,8 @@ def _parse_row(row: list) -> SourceRecord:
     record = {
         field: value for field, value in zip(FIELDS, row)
     }
+    record["latitude"], record["longitude"] = get_coords_from_postal_code(record["recipient_postal_code"])
     return SourceRecord(**record)
-
-
-def _check_record(record: SourceRecord) -> bool:
-    if record["recipient_city"] and not re.match(r"Vancouver", record["recipient_city"], flags=re.IGNORECASE):
-        return False
-    if record["agreement_end_date"] and int(record["agreement_end_date"].split("-")[0]) < 2021:
-        return False
-    return True
 
 
 def collect_records(refresh: bool = False) -> list[SourceRecord]:
@@ -117,13 +111,31 @@ def collect_records(refresh: bool = False) -> list[SourceRecord]:
         download_by_postal()
     inputs = os.listdir(TMP_DIR)
     records = []
+    n_files = len(inputs)
+    coord_filter = date_filter = 0
+    collected = total_records = 0
     for file in inputs:
+        print(f"Parsing records from {file}...")
         with open(f"{TMP_DIR}/{file}", "r", encoding="utf-8-sig") as f:
             js = json.load(f)
+            total = len(js["records"])
+            total_records += total
+            ct = 0
             for row in js["records"]:
                 record = _parse_row(row)
-                if _check_record(record):
-                    records.append(record)
+                if not is_in_riding(record["latitude"], record["longitude"]):
+                    coord_filter += 1
+                    continue
+                if record["agreement_end_date"] and int(record["agreement_end_date"].split("-")[0]) < 2021:
+                    date_filter += 1
+                    continue
+                records.append(record)
+                ct += 1
+        print(f"Collected {ct}/{total} records from {file}.")
+        collected += ct
+    print(f"\nParsing complete! {collected} records collected out of {total_records} total records found in {n_files} files."
+          f"\nFilter stats: {coord_filter} (outside riding) + {date_filter} (pre-taleeb) = {coord_filter + date_filter}/{total_records} rejected.")
+
     with open(JSON_FILENAME, "w") as f:
         json.dump(records, f, indent=2)
     print(f"Collected {len(records)} records from {len(inputs)} files.")
