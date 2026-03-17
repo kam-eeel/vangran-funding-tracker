@@ -20,6 +20,9 @@ def run_ingestion(db: Database = None):  # pyright: ignore[reportArgumentType]
 
     for record in records:
         pc = record.get("recipient_postal_code")
+        lat, long = get_coords_from_postal_code(pc)
+        if not is_in_riding(lat, long):
+            continue
         additional_info = ""
         start = record.get("agreement_start_date")
         end = record.get("agreement_end_date") if record.get("agreement_end_date") is not None else start
