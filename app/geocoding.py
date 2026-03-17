@@ -55,18 +55,42 @@ BASE_URL = "https://api.mapbox.com/search/geocode/v6/forward"
 ACCESS_TOKEN = os.getenv("MAPBOX_ACCESS_TOKEN", "pk.eyJ1Ijoia2FtZWVsOTQiLCJhIjoiY21tdXJ3N3pwMXRxbjJyb2pvYzhqN2NoZiJ9.8Q0JGXOk3ROXpKHKwvIYDg")
 
 def get_coords_from_postal_code(postal_code: str) -> tuple[float, float]:
-    """Return *latitude*, *longitude* for *postal_code*"""
-    params = {
-        "access_token": ACCESS_TOKEN,
-        "limit": 1,
-        "q": postal_code
-    }
-    r = requests.get(BASE_URL, params=params)
-    r.raise_for_status()
-    js = json.loads(r.text)
-    coords = js["features"][0]["properties"]["coordinates"]
-    time.sleep(0.15)
-    return coords["latitude"], coords["longitude"]
+    """Return *latitude*, *longitude* for *postal_code*.
+
+    Tries an exact FSA match first. If none found, falls back to the FSA
+    alone as the query (broader search). Always returns coordinates — uses
+    the best available candidate rather than returning None.
+    """
+    query_fsa = postal_code.replace(" ", "").upper()[:3]
+
+    for query in [postal_code, query_fsa]:
+        params = {
+            "access_token": ACCESS_TOKEN,
+            "limit": 10,
+            "q": query,
+            "country": "CA",
+            "types": "postcode",
+            "proximity": "-123.13,49.25",
+        }
+        r = requests.get(BASE_URL, params=params)
+        r.raise_for_status()
+        js = json.loads(r.text)
+        time.sleep(0.15)
+
+        for feature in js.get("features", []):
+            props = feature.get("properties", {})
+            name = props.get("name", "").replace(" ", "").upper()
+            full_addr = props.get("full_address", "").replace(" ", "").upper()
+            if name.startswith(query_fsa) or full_addr[:3] == query_fsa:
+                coords = props["coordinates"]
+                return coords["latitude"], coords["longitude"]
+
+    # Last resort: return the top result from the FSA-only query
+    if js.get("features"):
+        coords = js["features"][0]["properties"]["coordinates"]
+        return coords["latitude"], coords["longitude"]
+
+    raise ValueError(f"Mapbox returned no results for postal code {postal_code!r}")
 
 def is_in_riding(lat: float, long: float) -> bool:
     return RIDING_POLYGON.contains(Point(long, lat))

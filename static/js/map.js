@@ -35,7 +35,7 @@
         modal.classList.remove('hidden');
     }
 
-    function buildSidebarItem(pt, marker, map) {
+    function buildSidebarItem(pt, map) {
         const item = document.createElement('div');
         item.className = 'px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors';
         item.dataset.id = pt.id;
@@ -51,11 +51,27 @@
         `;
 
         item.addEventListener('click', () => {
-            map.setView(marker.getLatLng(), 15, { animate: true });
+            map.setView([pt.lat, pt.lng], 15, { animate: true });
             openRecordModal(pt.id);
         });
 
         return item;
+    }
+
+    function updateSidebar(points, map) {
+        const sidebarList = document.getElementById('map-sidebar-list');
+        if (!sidebarList) return;
+
+        const bounds = map.getBounds();
+        const visible = points.filter(pt => bounds.contains([pt.lat, pt.lng]));
+
+        const countEl = document.getElementById('map-sidebar-count');
+        if (countEl) countEl.textContent = visible.length.toLocaleString();
+
+        sidebarList.innerHTML = '';
+        visible.forEach(pt => {
+            sidebarList.appendChild(buildSidebarItem(pt, map));
+        });
     }
 
     async function initMap() {
@@ -63,8 +79,6 @@
         if (!mapEl) return;
 
         const isExpanded = !!document.getElementById('map-sidebar-list');
-
-        // Pass current URL query params to the API (preserves active filters on expanded page)
         const params = new URLSearchParams(window.location.search);
 
         const map = L.map(mapEl).setView([49.255, -123.13], 13);
@@ -78,24 +92,34 @@
         if (!res.ok) return;
         const points = await res.json();
 
-        const sidebarList = document.getElementById('map-sidebar-list');
         const countEl = document.getElementById('map-point-count');
         if (countEl) countEl.textContent = points.length.toLocaleString();
+
+        const clusters = L.markerClusterGroup({
+            maxClusterRadius: 50,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+        });
 
         const bounds = [];
 
         points.forEach(pt => {
-            const marker = L.circleMarker([pt.lat, pt.lng], MARKER_STYLE).addTo(map);
+            const marker = L.circleMarker([pt.lat, pt.lng], MARKER_STYLE);
             marker.on('click', () => openRecordModal(pt.id));
+            clusters.addLayer(marker);
             bounds.push([pt.lat, pt.lng]);
-
-            if (isExpanded && sidebarList) {
-                sidebarList.appendChild(buildSidebarItem(pt, marker, map));
-            }
         });
+
+        map.addLayer(clusters);
 
         if (bounds.length > 0) {
             map.fitBounds(bounds, { padding: [24, 24] });
+        }
+
+        if (isExpanded) {
+            updateSidebar(points, map);
+            map.on('moveend', () => updateSidebar(points, map));
         }
     }
 
