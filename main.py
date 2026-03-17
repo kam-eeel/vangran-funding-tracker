@@ -6,7 +6,7 @@ from app.db import Database, RecordRepo
 from app.schemas import OPTIONAL_FIELDS
 
 
-def run_ingestion(db: Database = None):
+def run_ingestion(db: Database = None):  # pyright: ignore[reportArgumentType]
     import shutil
     from app import dataset
 
@@ -28,6 +28,8 @@ def run_ingestion(db: Database = None):
             ref_n=record.get("ref_number"),
             recipient_name=record.get("recipient_legal_name"),
             postal_code=record.get("recipient_postal_code"),
+            latitude=record.get("latitude"),
+            longitude=record.get("longitude"),
             program_name=record.get("prog_name_en"),
             amount=float(record.get("agreement_value")),
             start_date=date.fromisoformat(start),

@@ -23,6 +23,8 @@ class Record(Base):
     ref_n: Mapped[str] = mapped_column(String)
     recipient_name: Mapped[str] = mapped_column(Text)
     postal_code: Mapped[str] = mapped_column(Text)
+    latitude: Mapped[Numeric] = mapped_column(Numeric)
+    longitude: Mapped[Numeric] = mapped_column(Numeric)
     program_name: Mapped[Optional[str]] = mapped_column(Text)
     amount: Mapped[Numeric] = mapped_column(Numeric)
     start_date: Mapped[date] = mapped_column(Date)

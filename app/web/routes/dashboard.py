@@ -185,3 +185,42 @@ def chart_expand_page(
         "sort": "amount",
         "dir": "desc",
     })
+
+
+@router.get("/api/map-points")
+def map_points(
+    qs: RecordQueryService = Depends(get_query_service),
+    department: str | None = None,
+    program: str | None = None,
+    postal_code: str | None = None,
+    start_date_from: str | None = None,
+    start_date_to: str | None = None,
+    amount_min: str | None = None,
+    amount_max: str | None = None,
+    search: str | None = None,
+):
+    filters = _build_filters(department, program, postal_code, start_date_from, start_date_to, amount_min, amount_max, search)
+    return qs.get_map_points(filters=filters)
+
+
+@router.get("/map", response_class=HTMLResponse)
+def map_page(
+    request: Request,
+    qs: RecordQueryService = Depends(get_query_service),
+    templates: Jinja2Templates = Depends(get_templates),
+    department: str | None = None,
+    program: str | None = None,
+    postal_code: str | None = None,
+    start_date_from: str | None = None,
+    start_date_to: str | None = None,
+    amount_min: str | None = None,
+    amount_max: str | None = None,
+    search: str | None = None,
+):
+    filters = _build_filters(department, program, postal_code, start_date_from, start_date_to, amount_min, amount_max, search)
+    filter_options = qs.get_filter_options()
+    return templates.TemplateResponse("map_view.html", {
+        "request": request,
+        "filter_options": filter_options,
+        "filters": filters,
+    })

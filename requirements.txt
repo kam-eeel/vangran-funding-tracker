@@ -4,3 +4,4 @@ sqlalchemy
 fastapi
 uvicorn[standard]
 jinja2
+shapely
