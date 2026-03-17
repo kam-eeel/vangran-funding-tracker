@@ -44,19 +44,17 @@ class Record(Base):
                f"department={self.department!r})>"
 
 
-class RejectedRecord(Base):
-    """Records that were rejected during ingestion (e.g. outside riding).
+class PostalCodeCache(Base):
+    """Persisted geocoding results per postal code.
 
-    Checked before any geocoding or upsert work to avoid redundant API calls.
+    Eliminates redundant Mapbox API calls across runs by caching whether
+    a postal code is inside the riding and its coordinates.
     """
-    __tablename__ = "rejected_records"
-    __table_args__ = (
-        UniqueConstraint("ref_n", "postal_code", "start_date", name="uq_rejected_identity"),
-    )
+    __tablename__ = "postal_code_cache"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    ref_n: Mapped[str] = mapped_column(String)
-    postal_code: Mapped[str] = mapped_column(Text)
-    start_date: Mapped[date] = mapped_column(Date)
-    reason: Mapped[str] = mapped_column(Text)
+    postal_code: Mapped[str] = mapped_column(String, unique=True)
+    latitude: Mapped[float] = mapped_column(Numeric)
+    longitude: Mapped[float] = mapped_column(Numeric)
+    in_riding: Mapped[bool] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())

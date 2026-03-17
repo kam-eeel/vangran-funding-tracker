@@ -8,7 +8,7 @@ from sqlalchemy import create_engine, select, func, event, cast, String, case
 from sqlalchemy.orm import Session, sessionmaker
 from contextlib import contextmanager
 
-from app.models import Base, Record
+from app.models import Base, Record, PostalCodeCache
 
 import os
 import logging
@@ -48,44 +48,41 @@ class RecordRepo:
     def __init__(self, db: Database):
         self.db = db
 
-    def add(
-        self,
-        ref_n: str,
-        recipient_name: str,
-        postal_code: str,
-        latitude: float,
-        longitude: float,
-        program_name: str,
-        amount: float,
-        start_date: date,
-        end_date: date,
-        department: str,
-        additional_info: str,
-        **_: Any,
-    ) -> str:
-        with self.db.session() as s:
-            rcd = Record(
-                ref_n=ref_n,
-                recipient_name=recipient_name,
-                postal_code=postal_code,
-                latitude=latitude,
-                longitude=longitude,
-                program_name=program_name,
-                amount=amount,
-                start_date=start_date,
-                end_date=end_date,
-                department=department,
-                additional_info=additional_info
-            )
-            s.add(rcd)
-            s.flush()
-            return rcd.ref_n
-
     # Fields compared during upsert to detect changes
     UPSERT_FIELDS = (
         "recipient_name", "postal_code", "program_name", "amount",
         "start_date", "end_date", "department", "additional_info",
     )
+
+    def load_postal_code_cache(self) -> dict[str, tuple[float, float, bool]]:
+        """Load all cached geocoding results keyed by postal code."""
+        with self.db.session() as s:
+            rows = s.execute(
+                select(
+                    PostalCodeCache.postal_code,
+                    PostalCodeCache.latitude,
+                    PostalCodeCache.longitude,
+                    PostalCodeCache.in_riding,
+                )
+            ).all()
+            return {r[0]: (float(r[1]), float(r[2]), bool(r[3])) for r in rows}
+
+    def save_postal_code_cache(self, entries: dict[str, tuple[float, float, bool]]) -> None:
+        """Persist new postal code geocoding results, skipping existing."""
+        with self.db.session() as s:
+            for postal_code, (lat, lng, in_riding) in entries.items():
+                exists = s.execute(
+                    select(PostalCodeCache.id).where(
+                        PostalCodeCache.postal_code == postal_code,
+                    )
+                ).scalar_one_or_none()
+                if exists is None:
+                    s.add(PostalCodeCache(
+                        postal_code=postal_code,
+                        latitude=lat,
+                        longitude=lng,
+                        in_riding=in_riding,
+                    ))
 
     def upsert(
         self,
@@ -101,10 +98,7 @@ class RecordRepo:
         department: str,
         additional_info: str,
     ) -> str:
-        """Upsert a record by composite key. Returns 'new', 'updated', or 'unchanged'.
-
-        Records arrive pre-geocoded and pre-filtered from collect_records().
-        """
+        """Upsert a pre-geocoded, pre-filtered record. Returns 'new', 'updated', or 'unchanged'."""
         incoming = {
             "recipient_name": recipient_name,
             "postal_code": postal_code,
@@ -133,8 +127,7 @@ class RecordRepo:
                 s.add(rcd)
                 return "new"
 
-            # Detect field-level changes (postal_code & start_date are part of
-            # the lookup key so they can't change for a matched record)
+            # Compare fields (postal_code & start_date are lookup keys, can't change)
             changed_fields: dict[str, Any] = {}
             for field in self.UPSERT_FIELDS:
                 if field in ("postal_code", "start_date"):

@@ -49,61 +49,39 @@ def _build_record_kwargs(record: SourceRecord) -> _RecordKwargs:
     )
 
 
-def run_ingestion(db: Database | None = None) -> None:
+def _collect_and_upsert(repo: RecordRepo) -> dict[str, int]:
+    """Shared logic for initial ingestion and weekly updates.
+
+    1. Load the postal code cache so known postal codes skip geocoding.
+    2. Download/parse/geocode/filter via collect_records.
+    3. Persist new postal code cache entries.
+    4. Upsert accepted records.
+    5. Clean up tmp files on success.
+    """
     import shutil
     from app import dataset
 
-    if db is None:
-        db = Database()
-        db.create_tables()
-    repo = RecordRepo(db)
+    postal_code_cache = repo.load_postal_code_cache()
+    result = dataset.collect_records(postal_code_cache=postal_code_cache)
 
-    records = dataset.collect_records(refresh=False)
+    # Persist new postal code cache entries
+    if result.new_cache_entries:
+        repo.save_postal_code_cache(result.new_cache_entries)
+        logger.info("Cached %d new postal code geocoding results", len(result.new_cache_entries))
 
-    for record in records:
-        kwargs = _build_record_kwargs(record)
-        repo.add(
-            latitude=record["latitude"],
-            longitude=record["longitude"],
-            **kwargs,
-        )
-
-    # Clean up intermediate files after DB is populated
-    if os.path.isdir(dataset.TMP_DIR):
-        shutil.rmtree(dataset.TMP_DIR)
-    if os.path.exists(dataset.JSON_FILENAME):
-        os.remove(dataset.JSON_FILENAME)
-
-
-def run_update(db: Database | None = None) -> None:
-    """Re-download the dataset and upsert records. Only geocodes new/changed postal codes."""
-    import shutil
-    from app import dataset
-    from app.notifications import IngestionEvent, notify
-
-    if db is None:
-        db = Database()
-        db.create_tables()
-    repo = RecordRepo(db)
-
-    logger.info("Starting weekly data update...")
-    records = dataset.collect_records(refresh=True)
-
-    counts = {"new": 0, "updated": 0, "unchanged": 0}
-    errors: list[str] = []
-
-    for record in records:
+    counts = {"new": 0, "updated": 0, "unchanged": 0, "errors": 0}
+    for record in result.records:
         kwargs = _build_record_kwargs(record)
         try:
-            result = repo.upsert(
+            status = repo.upsert(
                 latitude=record["latitude"],
                 longitude=record["longitude"],
                 **kwargs,
             )
-            counts[result] += 1
+            counts[status] += 1
         except Exception as e:
             ref: str = record["ref_number"]
-            errors.append(f"{ref}: {e}")
+            counts["errors"] += 1
             logger.error("Upsert failed for %s: %s", ref, e)
 
     # Clean up intermediate files
@@ -112,16 +90,39 @@ def run_update(db: Database | None = None) -> None:
     if os.path.exists(dataset.JSON_FILENAME):
         os.remove(dataset.JSON_FILENAME)
 
+    return counts
+
+
+def run_ingestion(db: Database | None = None) -> None:
+    if db is None:
+        db = Database()
+        db.create_tables()
+    repo = RecordRepo(db)
+    _collect_and_upsert(repo)
+
+
+def run_update(db: Database | None = None) -> None:
+    """Re-download the dataset and upsert records. Only geocodes new/changed postal codes."""
+    from app.notifications import IngestionEvent, notify
+
+    if db is None:
+        db = Database()
+        db.create_tables()
+    repo = RecordRepo(db)
+
+    logger.info("Starting weekly data update...")
+    counts = _collect_and_upsert(repo)
+
     logger.info(
         "Update complete — %d new, %d updated, %d unchanged, %d errors",
-        counts["new"], counts["updated"], counts["unchanged"], len(errors),
+        counts["new"], counts["updated"], counts["unchanged"], counts["errors"],
     )
 
     notify(IngestionEvent(
         new_records=counts["new"],
         updated_records=counts["updated"],
         unchanged_records=counts["unchanged"],
-        errors=errors,
+        errors=[],
     ))
 
 

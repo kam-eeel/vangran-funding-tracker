@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import os
-import re
 import json
 import requests
 from pathlib import Path
@@ -43,10 +44,14 @@ TMP_DIR = "./tmp"
 CSV_FILENAME = "dataset_full.csv"
 JSON_FILENAME = "vangran_latest.json"
 
-def download_by_postal():
+def download_by_postal() -> None:
     if not Path(TMP_DIR).exists():
         Path(TMP_DIR).mkdir()
     for fsa in RIDING_POSTAL_CODES:
+        dest = Path(TMP_DIR) / f"{fsa}.json"
+        if dest.exists():
+            print(f"Skipping {fsa} — already downloaded.")
+            continue
         params = {
             "q": json.dumps({"recipient_postal_code": f"{fsa}:*"}),
             "plain": "False",
@@ -98,32 +103,31 @@ def download_by_postal():
             print(f"Download for postal code {fsa} failed. Error: {e}")
 
 
-_geocode_cache: dict[str, tuple[float, float]] = {}
+class CollectResult:
+    """Result of collect_records including new postal code cache entries."""
+    __slots__ = ("records", "new_cache_entries")
+
+    def __init__(self) -> None:
+        self.records: list[SourceRecord] = []
+        self.new_cache_entries: dict[str, tuple[float, float, bool]] = {}
 
 
-def _parse_row(row: list[str]) -> SourceRecord:
-    record: dict[str, str | float | None] = {
-        field: value for field, value in zip(FIELDS, row)
-    }
-    postal_code = record["recipient_postal_code"]
-    assert isinstance(postal_code, str)
-    if postal_code not in _geocode_cache:
-        _geocode_cache[postal_code] = get_coords_from_postal_code(postal_code)
-    record["latitude"], record["longitude"] = _geocode_cache[postal_code]
-    return SourceRecord(**record)  # type: ignore[arg-type]
+def collect_records(
+    postal_code_cache: dict[str, tuple[float, float, bool]] | None = None,
+) -> CollectResult:
+    """Download, parse, geocode, and filter records.
 
-
-def collect_records(refresh: bool = False) -> list[SourceRecord]:
-    """Collect records from the Open Canada dataset.
-
-    Geocodes each record (cached per postal code) and filters by riding polygon.
+    *postal_code_cache* maps postal codes to ``(lat, lng, in_riding)``.
+    Cache hits with ``in_riding=False`` skip immediately.  Cache hits with
+    ``in_riding=True`` reuse cached coords.  Cache misses geocode via the
+    API and populate ``result.new_cache_entries`` for the caller to persist.
     """
-    if refresh or not Path(TMP_DIR).exists():
-        download_by_postal()
+    download_by_postal()
+    cache = postal_code_cache or {}
     inputs = os.listdir(TMP_DIR)
-    records: list[SourceRecord] = []
+    result = CollectResult()
     n_files = len(inputs)
-    coord_filter = date_filter = 0
+    cached_outside = coord_filter = date_filter = 0
     collected = total_records = 0
     for file in inputs:
         print(f"Parsing records from {file}...")
@@ -133,22 +137,49 @@ def collect_records(refresh: bool = False) -> list[SourceRecord]:
             total_records += total
             ct = 0
             for row in js["records"]:
-                record = _parse_row(row)
-                if not is_in_riding(record["latitude"], record["longitude"]):
-                    coord_filter += 1
-                    continue
-                if record["agreement_end_date"] and int(record["agreement_end_date"].split("-")[0]) < 2021:
+                record: dict[str, str | float | None] = {
+                    field: value for field, value in zip(FIELDS, row)
+                }
+                postal_code = record["recipient_postal_code"]
+                assert isinstance(postal_code, str)
+
+                if postal_code in cache:
+                    lat, lng, in_riding_flag = cache[postal_code]
+                    if not in_riding_flag:
+                        cached_outside += 1
+                        continue
+                    record["latitude"] = lat
+                    record["longitude"] = lng
+                else:
+                    lat, lng = get_coords_from_postal_code(postal_code)
+                    record["latitude"] = lat
+                    record["longitude"] = lng
+                    in_riding_flag = is_in_riding(lat, lng)
+                    cache[postal_code] = (lat, lng, in_riding_flag)
+                    result.new_cache_entries[postal_code] = (lat, lng, in_riding_flag)
+                    if not in_riding_flag:
+                        cached_outside += 1
+                        continue
+
+                end_date = record["agreement_end_date"]
+                if end_date and isinstance(end_date, str) and int(end_date.split("-")[0]) < 2021:
                     date_filter += 1
                     continue
-                records.append(record)
+                result.records.append(SourceRecord(**record))  # type: ignore[arg-type]
                 ct += 1
         print(f"Collected {ct}/{total} records from {file}.")
         collected += ct
-    print(f"\nParsing complete! {collected} records collected out of {total_records} total records found in {n_files} files."
-          f"\nFilter stats: {coord_filter} (outside riding) + {date_filter} (pre-taleeb) = {coord_filter + date_filter}/{total_records} rejected.")
+    rejected_total = cached_outside + coord_filter + date_filter
+    print(
+        f"\nParsing complete! {collected} records collected out of "
+        f"{total_records} total records found in {n_files} files."
+        f"\nFilter stats: {cached_outside} (cached outside riding) + "
+        f"{coord_filter} (outside riding) + {date_filter} (pre-2021) "
+        f"= {rejected_total}/{total_records} rejected."
+    )
 
     with open(JSON_FILENAME, "w") as f:
-        json.dump(records, f, indent=2)
-    print(f"Collected {len(records)} records from {len(inputs)} files.")
-    return records
+        json.dump(result.records, f, indent=2)
+    print(f"Collected {len(result.records)} records from {len(inputs)} files.")
+    return result
 
