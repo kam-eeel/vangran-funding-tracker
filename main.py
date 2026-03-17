@@ -1,3 +1,4 @@
+import os
 import sys
 from datetime import date
 
@@ -5,11 +6,13 @@ from app.db import Database, RecordRepo
 from app.schemas import OPTIONAL_FIELDS
 
 
-def run_ingestion():
+def run_ingestion(db: Database = None):
+    import shutil
     from app import dataset
 
-    db = Database()
-    db.create_tables()
+    if db is None:
+        db = Database()
+        db.create_tables()
     repo = RecordRepo(db)
 
     records = dataset.collect_records(refresh=False)
@@ -33,12 +36,27 @@ def run_ingestion():
             additional_info=additional_info,
         )
 
+    # Clean up intermediate files after DB is populated
+    if os.path.isdir(dataset.TMP_DIR):
+        shutil.rmtree(dataset.TMP_DIR)
+    if os.path.exists(dataset.JSON_FILENAME):
+        os.remove(dataset.JSON_FILENAME)
+
 
 def run_server():
     import uvicorn
+    from sqlalchemy import text
     from app.web import create_app
 
     app = create_app()
+
+    with app.state.db.session() as s:
+        count = s.execute(text("SELECT COUNT(*) FROM records")).scalar()
+    if count == 0:
+        print("Database is empty — running initial ingestion...")
+        run_ingestion(app.state.db)
+        print("Ingestion complete.")
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 

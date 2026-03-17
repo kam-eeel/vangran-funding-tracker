@@ -6,8 +6,13 @@ from contextlib import contextmanager
 
 from app.models import Base, Record
 
+import os
+
 class Database:
-    def __init__(self, url: str = "sqlite:///vangran.db"):
+    def __init__(self, url: str = None):
+        if url is None:
+            db_path = os.environ.get("DB_PATH", "vangran.db")
+            url = f"sqlite:///{db_path}"
         self.engine = create_engine(url)
         @event.listens_for(self.engine, "connect")
         def pragmas(dbapi_conn, _):
