@@ -60,7 +60,11 @@ def get_coords_from_postal_code(postal_code: str) -> tuple[float, float]:
         "limit": 1,
         "q": postal_code
     }
-    r = requests.get(BASE_URL, params=params)
+    try:
+        r = requests.get(BASE_URL, params=params)
+        r.raise_for_status()
+    except requests.HTTPError:
+        return 0.0, 0.0
     js = json.loads(r.text)
     coords = js["features"][0]["properties"]["coordinates"]
     return coords["latitude"], coords["longitude"]

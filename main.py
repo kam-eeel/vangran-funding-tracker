@@ -4,6 +4,7 @@ from datetime import date
 
 from app.db import Database, RecordRepo
 from app.schemas import OPTIONAL_FIELDS
+from app.geocoding import get_coords_from_postal_code, is_in_riding
 
 
 def run_ingestion(db: Database = None):  # pyright: ignore[reportArgumentType]
@@ -18,6 +19,7 @@ def run_ingestion(db: Database = None):  # pyright: ignore[reportArgumentType]
     records = dataset.collect_records(refresh=False)
 
     for record in records:
+        pc = record.get("recipient_postal_code")
         additional_info = ""
         start = record.get("agreement_start_date")
         end = record.get("agreement_end_date") if record.get("agreement_end_date") is not None else start
