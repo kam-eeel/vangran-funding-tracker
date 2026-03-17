@@ -10,7 +10,7 @@
 <th class="px-2.5 py-2 text-{{ align }} text-[10px] font-semibold uppercase tracking-wider cursor-pointer select-none whitespace-nowrap
            text-gray-500 hover:text-primary
            {% if sort == col %}text-primary{% endif %}"
-    hx-get="/explore/partials/table?sort={{ col }}&dir={{ next_dir }}"
+    hx-get="/explore/partials/table?sort={{ col }}&dir={{ next_dir }}&per_page={{ per_page }}"
     hx-target="#records-table-container"
     hx-include="#filter-form"
     hx-indicator="#loading-bar"
@@ -25,6 +25,22 @@
         <span class="font-medium text-gray-900">{{ ((page - 1) * per_page) + 1 }}–{{ [page * per_page, total] | min }}</span>
         of <span class="font-medium text-gray-900">{{ "{:,}".format(total) }}</span> contributions
     </p>
+    <div class="flex items-center gap-1.5">
+        <label class="text-xs text-gray-500">Show</label>
+        <select onchange="
+            document.getElementById('per-page-hidden').value = this.value;
+            var params = new URLSearchParams(new FormData(document.getElementById('filter-form')));
+            params.set('per_page', this.value);
+            params.set('page', 1);
+            htmx.ajax('GET', '/explore/partials/table?' + params.toString(), {target: '#records-table-container'});
+        "
+                class="text-xs border border-gray-300 rounded px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary">
+            {% for opt in per_page_options %}
+            <option value="{{ opt }}" {% if opt == per_page %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+        </select>
+        <span class="text-xs text-gray-500">per page</span>
+    </div>
 </div>
 
 <div class="bg-white rounded border border-gray-200 overflow-hidden">
@@ -44,11 +60,15 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 {% for r in records %}
-                <tr class="record-row hover:bg-gray-50">
-                    <td class="px-2.5 py-1.5 text-gray-400 font-mono whitespace-nowrap">{{ r.ref_n }}</td>
-                    <td class="px-2.5 py-1.5 max-w-[180px] truncate text-gray-900" title="{{ r.recipient_name }}">{{ r.recipient_name }}</td>
-                    <td class="px-2.5 py-1.5 max-w-[160px] truncate text-gray-600" title="{{ r.department }}">{{ short_department(r.department) }}</td>
-                    <td class="px-2.5 py-1.5 max-w-[160px] truncate text-gray-600" title="{{ r.program_name }}">{{ r.program_name }}</td>
+                <tr class="record-row hover:bg-gray-50 cursor-pointer"
+                    hx-get="/explore/partials/record/{{ r.id }}"
+                    hx-target="#record-modal-content"
+                    hx-indicator="#loading-bar"
+                    hx-on::after-request="document.getElementById('record-modal').classList.remove('hidden')">
+                    <td class="px-2.5 py-1.5 text-gray-400 font-mono break-all">{{ r.ref_n }}</td>
+                    <td class="px-2.5 py-1.5 max-w-[200px] text-gray-900 break-words">{{ r.recipient_name }}</td>
+                    <td class="px-2.5 py-1.5 max-w-[180px] text-gray-600 break-words">{{ short_department(r.department) }}</td>
+                    <td class="px-2.5 py-1.5 max-w-[180px] text-gray-600 break-words">{{ r.program_name }}</td>
                     <td class="px-2.5 py-1.5 whitespace-nowrap font-mono text-gray-500">{{ r.postal_code[:3] }}</td>
                     <td class="px-2.5 py-1.5 text-right whitespace-nowrap font-mono font-medium
                                {% if r.amount is not none and r.amount >= 0 %}text-accent-green{% else %}text-accent-red{% endif %}">
@@ -74,7 +94,7 @@
 <nav class="flex items-center justify-center gap-1 mt-3">
     {% macro page_btn(p, label=None, disabled=False) %}
     <button {% if not disabled %}
-                hx-get="/explore/partials/table?page={{ p }}&sort={{ sort }}&dir={{ dir }}"
+                hx-get="/explore/partials/table?page={{ p }}&sort={{ sort }}&dir={{ dir }}&per_page={{ per_page }}"
                 hx-target="#records-table-container"
                 hx-include="#filter-form"
                 hx-indicator="#loading-bar"

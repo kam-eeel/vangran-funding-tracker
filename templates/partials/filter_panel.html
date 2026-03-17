@@ -54,28 +54,27 @@
 
     <div>
         <label class="block text-[10px] font-medium text-gray-500 mb-1 uppercase tracking-wider">Start Date Range</label>
-        <div class="flex gap-1.5">
+        <div class="flex flex-col gap-1.5">
             <input type="date" name="start_date_from" value="{{ filters.get('start_date_from', '') }}"
-                   class="flex-1 px-2 py-1.5 text-xs rounded border border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-primary focus:border-primary outline-none">
+                   class="w-full px-2 py-1.5 text-xs rounded border border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-primary focus:border-primary outline-none">
             <input type="date" name="start_date_to" value="{{ filters.get('start_date_to', '') }}"
-                   class="flex-1 px-2 py-1.5 text-xs rounded border border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-primary focus:border-primary outline-none">
+                   class="w-full px-2 py-1.5 text-xs rounded border border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-primary focus:border-primary outline-none">
         </div>
     </div>
 
     <div>
         <label class="block text-[10px] font-medium text-gray-500 mb-1 uppercase tracking-wider">Amount Range</label>
-        <div class="flex gap-1.5">
+        <div class="flex flex-col gap-1.5">
             <input type="number" name="amount_min" value="{{ filters.get('amount_min', '') }}"
                    placeholder="Min"
-                   class="flex-1 px-2 py-1.5 text-xs rounded border border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-primary focus:border-primary outline-none placeholder:text-gray-400">
+                   class="w-full px-2 py-1.5 text-xs rounded border border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-primary focus:border-primary outline-none placeholder:text-gray-400">
             <input type="number" name="amount_max" value="{{ filters.get('amount_max', '') }}"
                    placeholder="Max"
-                   class="flex-1 px-2 py-1.5 text-xs rounded border border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-primary focus:border-primary outline-none placeholder:text-gray-400">
+                   class="w-full px-2 py-1.5 text-xs rounded border border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-primary focus:border-primary outline-none placeholder:text-gray-400">
         </div>
     </div>
 
-    <input type="hidden" name="sort" value="{{ sort }}">
-    <input type="hidden" name="dir" value="{{ dir }}">
+    <input type="hidden" id="per-page-hidden" name="per_page" value="{{ per_page }}">
 
     <div class="flex gap-2 pt-1">
         <button type="submit"

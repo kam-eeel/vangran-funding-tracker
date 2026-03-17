@@ -9,14 +9,9 @@ router = APIRouter()
 
 
 def _format_currency(value: float) -> str:
-    """Format a number as a human-readable currency string."""
-    abs_val = abs(value)
-    if abs_val >= 1_000_000_000:
-        return f"${value / 1_000_000_000:,.2f}B"
-    if abs_val >= 1_000_000:
-        return f"${value / 1_000_000:,.1f}M"
-    if abs_val >= 1_000:
-        return f"${value / 1_000:,.1f}K"
+    """Format a number as full currency string."""
+    if value < 0:
+        return f"-${abs(value):,.0f}"
     return f"${value:,.0f}"
 
 

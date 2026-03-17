@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
@@ -54,6 +54,9 @@ def _short_department(name: str) -> str:
     return name
 
 
+PER_PAGE_OPTIONS = [50, 100, 250, 500]
+
+
 @router.get("/explore", response_class=HTMLResponse)
 def explore_page(
     request: Request,
@@ -70,14 +73,16 @@ def explore_page(
     sort: str = "amount",
     dir: str = "desc",
     page: int = 1,
+    per_page: int = 50,
 ):
+    per_page = per_page if per_page in PER_PAGE_OPTIONS else 50
     filters = _build_filters(
         department, program, postal_code,
         start_date_from, start_date_to,
         amount_min, amount_max, search,
     )
     filter_options = qs.get_filter_options()
-    result = qs.search_records(filters=filters, sort=sort, direction=dir, page=page)
+    result = qs.search_records(filters=filters, sort=sort, direction=dir, page=page, per_page=per_page)
 
     ctx = {
         "request": request,
@@ -86,6 +91,7 @@ def explore_page(
         "page": result["page"],
         "pages": result["pages"],
         "per_page": result["per_page"],
+        "per_page_options": PER_PAGE_OPTIONS,
         "filter_options": filter_options,
         "filters": filters,
         "sort": sort,
@@ -112,13 +118,15 @@ def explore_table_partial(
     sort: str = "amount",
     dir: str = "desc",
     page: int = 1,
+    per_page: int = 50,
 ):
+    per_page = per_page if per_page in PER_PAGE_OPTIONS else 50
     filters = _build_filters(
         department, program, postal_code,
         start_date_from, start_date_to,
         amount_min, amount_max, search,
     )
-    result = qs.search_records(filters=filters, sort=sort, direction=dir, page=page)
+    result = qs.search_records(filters=filters, sort=sort, direction=dir, page=page, per_page=per_page)
 
     ctx = {
         "request": request,
@@ -127,6 +135,7 @@ def explore_table_partial(
         "page": result["page"],
         "pages": result["pages"],
         "per_page": result["per_page"],
+        "per_page_options": PER_PAGE_OPTIONS,
         "filters": filters,
         "sort": sort,
         "dir": dir,
@@ -134,3 +143,34 @@ def explore_table_partial(
         "short_department": _short_department,
     }
     return templates.TemplateResponse("partials/records_table.html", ctx)
+
+
+@router.get("/explore/partials/record/{record_id}", response_class=HTMLResponse)
+def explore_record_detail(
+    record_id: int,
+    request: Request,
+    qs: RecordQueryService = Depends(get_query_service),
+    templates: Jinja2Templates = Depends(get_templates),
+):
+    record = qs.get_record_by_id(record_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Record not found")
+
+    # Parse additional_info into key-value pairs
+    info_pairs = []
+    for line in record["additional_info"].splitlines():
+        line = line.strip()
+        if ": " in line:
+            key, _, val = line.partition(": ")
+            info_pairs.append((key.strip(), val.strip()))
+        elif line:
+            info_pairs.append(("", line))
+
+    ctx = {
+        "request": request,
+        "record": record,
+        "info_pairs": info_pairs,
+        "format_currency": _format_currency,
+        "short_department": _short_department,
+    }
+    return templates.TemplateResponse("partials/record_detail.html", ctx)

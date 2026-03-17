@@ -261,6 +261,24 @@ class RecordQueryService:
                 "max_amount": float(amount_range[1]) if amount_range[1] else 0,
             }
 
+    def get_record_by_id(self, record_id: int) -> dict | None:
+        with self.db.session() as s:
+            r = s.get(Record, record_id)
+            if r is None:
+                return None
+            return {
+                "id": r.id,
+                "ref_n": r.ref_n,
+                "recipient_name": r.recipient_name,
+                "postal_code": r.postal_code,
+                "program_name": r.program_name,
+                "amount": float(str(r.amount)) if r.amount is not None else None,
+                "start_date": str(r.start_date) if r.start_date else None,
+                "end_date": str(r.end_date) if r.end_date else None,
+                "department": r.department,
+                "additional_info": r.additional_info or "",
+            }
+
     def search_records(
         self,
         filters: dict | None = None,
@@ -322,6 +340,7 @@ class RecordQueryService:
             # Convert to dicts while session is open to avoid DetachedInstanceError
             records = [
                 {
+                    "id": r.id,
                     "ref_n": r.ref_n,
                     "recipient_name": r.recipient_name,
                     "postal_code": r.postal_code,
