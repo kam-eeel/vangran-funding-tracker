@@ -2,11 +2,17 @@ services:
   vangran-funding:
     container_name: vangran-funding
     build: .
-    ports:
-      - "8000:8000"
+    expose:
+      - 8000
+    networks:
+      - cloudflared-net-tn_demo
     volumes:
       - db_data:/app/data
     restart: unless-stopped
 
 volumes:
   db_data:
+
+networks:
+  cloudflared-net-tn_demo:
+    external: true
