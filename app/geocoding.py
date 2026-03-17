@@ -52,7 +52,7 @@ RIDING_POLYGON = Polygon(RIDING_COORDS)
 
 BASE_URL = "https://api.mapbox.com/search/geocode/v6/forward"
 
-ACCESS_TOKEN = os.getenv("MAPBOX_ACCESS_TOKEN", "pk.eyJ1Ijoia2FtZWVsOTQiLCJhIjoiY21tdXJ3N3pwMXRxbjJyb2pvYzhqN2NoZiJ9.8Q0JGXOk3ROXpKHKwvIYDg")
+ACCESS_TOKEN = os.getenv("MAPBOX_ACCESS_TOKEN", "")
 
 def get_coords_from_postal_code(postal_code: str) -> tuple[float, float]:
     """Return *latitude*, *longitude* for *postal_code*.
