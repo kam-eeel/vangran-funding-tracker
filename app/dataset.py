@@ -125,7 +125,7 @@ def collect_records(refresh: bool = False) -> list[SourceRecord]:
                 record = _parse_row(row)
                 if not is_in_riding(record["latitude"], record["longitude"]):
                     coord_filter += 1
-                    continue
+                    # continue # temporary for testing, to actually see everything when i build the map view. just need to build the db first.
                 if record["agreement_end_date"] and int(record["agreement_end_date"].split("-")[0]) < 2021:
                     date_filter += 1
                     continue
