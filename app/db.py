@@ -1,6 +1,6 @@
 from datetime import date
 from math import ceil
-from sqlalchemy import create_engine, select, func, event, cast, String
+from sqlalchemy import create_engine, select, func, event, cast, String, case
 from sqlalchemy.orm import Session, sessionmaker, DeclarativeBase
 from contextlib import contextmanager
 
@@ -114,6 +114,7 @@ class RecordQueryService:
         return name
 
     def get_kpis(self) -> dict:
+        today = date.today()
         with self.db.session() as s:
             row = s.execute(
                 select(
@@ -122,6 +123,14 @@ class RecordQueryService:
                     func.coalesce(func.avg(Record.amount), 0).label("avg_amount"),
                     func.count(func.distinct(Record.program_name)).label("program_count"),
                     func.count(func.distinct(Record.department)).label("department_count"),
+                    func.coalesce(func.sum(case(
+                        (Record.end_date < today, Record.amount),
+                        else_=0,
+                    )), 0).label("funding_delivered"),
+                    func.coalesce(func.sum(case(
+                        (Record.end_date >= today, Record.amount),
+                        else_=0,
+                    )), 0).label("funding_committed"),
                 )
             ).one()
             return {
@@ -130,6 +139,8 @@ class RecordQueryService:
                 "avg_amount": float(row.avg_amount),
                 "program_count": int(row.program_count),
                 "department_count": int(row.department_count),
+                "funding_delivered": float(row.funding_delivered),
+                "funding_committed": float(row.funding_committed),
             }
 
     def _apply_filters(self, stmt, filters: dict):

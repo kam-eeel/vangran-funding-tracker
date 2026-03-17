@@ -54,6 +54,8 @@ def dashboard_page(
     kpis = qs.get_kpis()
     kpis["total_funding_fmt"] = _format_currency(kpis["total_funding"])
     kpis["avg_amount_fmt"] = _format_currency(kpis["avg_amount"])
+    kpis["funding_delivered_fmt"] = _format_currency(kpis["funding_delivered"])
+    kpis["funding_committed_fmt"] = _format_currency(kpis["funding_committed"])
     return templates.TemplateResponse(
         "dashboard.html", {"request": request, "kpis": kpis}
     )

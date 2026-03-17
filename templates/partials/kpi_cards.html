@@ -2,6 +2,16 @@
     <div class="bg-white rounded border border-gray-200 p-4 border-l-2 border-l-primary min-w-0">
         <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Funding</p>
         <p class="text-lg font-bold mt-1 text-primary break-all leading-tight">{{ kpis.total_funding_fmt }}</p>
+        <div class="mt-2 pt-2 border-t border-gray-100 space-y-0.5">
+            <div class="flex justify-between items-center text-xs" title="Funding where the agreement end date has passed">
+                <span class="text-gray-400">Delivered</span>
+                <span class="font-medium text-accent-green">{{ kpis.funding_delivered_fmt }}</span>
+            </div>
+            <div class="flex justify-between items-center text-xs" title="Funding where the agreement end date is today or in the future">
+                <span class="text-gray-400">Committed</span>
+                <span class="font-medium text-accent-blue">{{ kpis.funding_committed_fmt }}</span>
+            </div>
+        </div>
     </div>
     <div class="bg-white rounded border border-gray-200 p-4 border-l-2 border-l-accent-blue min-w-0">
         <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Contributions</p>
