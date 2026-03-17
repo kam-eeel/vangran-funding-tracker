@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, select, func, event, cast, String, case
 from sqlalchemy.orm import Session, sessionmaker, DeclarativeBase
 from contextlib import contextmanager
 
-from app.models import Base, Record
+from app.models import Base, Record, RecordLocation
 
 import os
 
@@ -53,7 +53,28 @@ class RecordRepo:
         department: str,
         additional_info: str
     ):
+        from app.geocoding import geocode_record
+
         with self.db.session() as s:
+            # Check if record already exists (upsert case)
+            existing = s.execute(
+                select(Record).where(Record.ref_n == ref_n)
+            ).scalar_one_or_none()
+
+            if existing is not None:
+                # Update fields but do NOT re-geocode
+                existing.recipient_name = recipient_name
+                existing.postal_code = postal_code
+                existing.program_name = program_name
+                existing.amount = amount
+                existing.start_date = start_date
+                existing.end_date = end_date
+                existing.department = department
+                existing.additional_info = additional_info
+                s.flush()
+                return existing.ref_n
+
+            # New record — insert and geocode
             rcd = Record(
                 ref_n=ref_n,
                 recipient_name=recipient_name,
@@ -66,7 +87,17 @@ class RecordRepo:
                 additional_info=additional_info
             )
             s.add(rcd)
-            s.flush()
+            s.flush()  # assigns rcd.id
+
+            coords = geocode_record(postal_code)
+            if coords is not None:
+                loc = RecordLocation(
+                    record_id=rcd.id,
+                    lat=coords[0],
+                    lng=coords[1],
+                )
+                s.add(loc)
+
             return rcd.ref_n
 
     def get(self, _id: int):
@@ -184,14 +215,19 @@ class RecordQueryService:
         return stmt
 
     def get_map_records(self, filters: dict | None = None) -> list[dict]:
-        """Return lightweight records for map plotting (id, name, postal_code, amount)."""
+        """Return records with lat/lng from the record_locations table."""
         filters = filters or {}
         with self.db.session() as s:
-            stmt = select(
-                Record.id,
-                Record.recipient_name,
-                Record.postal_code,
-                Record.amount,
+            stmt = (
+                select(
+                    Record.id,
+                    Record.recipient_name,
+                    Record.postal_code,
+                    Record.amount,
+                    RecordLocation.lat,
+                    RecordLocation.lng,
+                )
+                .join(RecordLocation, RecordLocation.record_id == Record.id)
             )
             stmt = self._apply_filters(stmt, filters)
             rows = s.execute(stmt).all()
@@ -201,6 +237,8 @@ class RecordQueryService:
                     "recipient_name": row.recipient_name,
                     "postal_code": row.postal_code,
                     "amount": float(str(row.amount)) if row.amount is not None else 0,
+                    "lat": row.lat,
+                    "lng": row.lng,
                 }
                 for row in rows
             ]

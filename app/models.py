@@ -1,8 +1,8 @@
 from datetime import date, datetime
 from typing import Optional
-from sqlalchemy import Index, String, Text, Numeric, Date, func
+from sqlalchemy import ForeignKey, Float, Index, Text, Numeric, Date, func
 from sqlalchemy.orm import (
-    DeclarativeBase, Mapped, mapped_column
+    DeclarativeBase, Mapped, mapped_column, relationship
 )
 
 # Base class — all models inherit from this
@@ -32,6 +32,8 @@ class Record(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     last_updated: Mapped[datetime] = mapped_column(server_default=func.now())
 
+    location: Mapped[Optional["RecordLocation"]] = relationship(back_populates="record", uselist=False)
+
     def __repr__(self):
         return f"<Record(ref={self.ref_n!r},"\
                f"recipient={self.recipient_name},"\
@@ -39,3 +41,15 @@ class Record(Base):
                f"start_date={self.start_date},"\
                f"end_date={self.end_date},"\
                f"department={self.department!r})>"
+
+
+class RecordLocation(Base):
+    __tablename__ = "record_locations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    record_id: Mapped[int] = mapped_column(ForeignKey("records.id", ondelete="CASCADE"), unique=True)
+    lat: Mapped[float] = mapped_column(Float)
+    lng: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    record: Mapped["Record"] = relationship(back_populates="location")

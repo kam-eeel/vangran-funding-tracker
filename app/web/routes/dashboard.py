@@ -3,7 +3,6 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from app.db import RecordQueryService
-from app.geocoding import geocode_record
 from app.web.deps import get_query_service, get_templates
 
 router = APIRouter()
@@ -163,20 +162,7 @@ def map_records(
 ):
     filters = _build_filters(department, program, postal_code, start_date_from, start_date_to, amount_min, amount_max, search)
     records = qs.get_map_records(filters=filters)
-    result = []
-    for r in records:
-        coords = geocode_record(r["postal_code"], r["id"])
-        if coords is None:
-            continue
-        result.append({
-            "id": r["id"],
-            "recipient_name": r["recipient_name"],
-            "postal_code": r["postal_code"],
-            "amount": r["amount"],
-            "lat": coords[0],
-            "lng": coords[1],
-        })
-    return {"records": result}
+    return {"records": records}
 
 
 @router.get("/chart/{chart_type}", response_class=HTMLResponse)
