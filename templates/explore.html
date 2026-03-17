@@ -29,21 +29,4 @@
     </div>
 </div>
 
-<!-- Record detail modal -->
-<div id="record-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('record-modal').classList.add('hidden')"></div>
-    <div id="record-modal-content" class="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-white rounded shadow-xl">
-        <!-- Content loaded by HTMX -->
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            document.getElementById('record-modal').classList.add('hidden');
-        }
-    });
-</script>
 {% endblock %}

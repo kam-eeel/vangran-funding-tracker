@@ -342,6 +342,37 @@ class RecordQueryService:
                 "additional_info": r.additional_info or "",
             }
 
+    def get_map_points(self, filters: dict | None = None) -> list[dict]:
+        """Return all geocoded records as lightweight map points."""
+        filters = filters or {}
+        with self.db.session() as s:
+            stmt = select(
+                Record.id,
+                Record.recipient_name,
+                Record.amount,
+                Record.postal_code,
+                Record.department,
+                Record.latitude,
+                Record.longitude,
+            ).where(
+                Record.latitude.is_not(None),
+                Record.longitude.is_not(None),
+            )
+            stmt = self._apply_filters(stmt, filters)
+            rows = s.execute(stmt).all()
+            return [
+                {
+                    "id": r.id,
+                    "lat": float(r.latitude),
+                    "lng": float(r.longitude),
+                    "recipient_name": r.recipient_name,
+                    "amount": float(str(r.amount)) if r.amount is not None else None,
+                    "postal_code": r.postal_code,
+                    "department": r.department,
+                }
+                for r in rows
+            ]
+
     def search_records(
         self,
         filters: dict | None = None,
