@@ -14,6 +14,8 @@ def _build_filters(
     postal_code: str | None = None,
     start_date_from: str | None = None,
     start_date_to: str | None = None,
+    end_date_from: str | None = None,
+    end_date_to: str | None = None,
     amount_min: str | None = None,
     amount_max: str | None = None,
     search: str | None = None,
@@ -30,6 +32,10 @@ def _build_filters(
         filters["start_date_from"] = start_date_from
     if start_date_to:
         filters["start_date_to"] = start_date_to
+    if end_date_from:
+        filters["end_date_from"] = end_date_from
+    if end_date_to:
+        filters["end_date_to"] = end_date_to
     if amount_min:
         filters["amount_min"] = amount_min
     if amount_max:
@@ -67,6 +73,8 @@ def explore_page(
     postal_code: str | None = None,
     start_date_from: str | None = None,
     start_date_to: str | None = None,
+    end_date_from: str | None = None,
+    end_date_to: str | None = None,
     amount_min: str | None = None,
     amount_max: str | None = None,
     search: str | None = None,
@@ -79,6 +87,7 @@ def explore_page(
     filters = _build_filters(
         department, program, postal_code,
         start_date_from, start_date_to,
+        end_date_from, end_date_to,
         amount_min, amount_max, search,
     )
     filter_options = qs.get_filter_options()
@@ -112,6 +121,8 @@ def explore_table_partial(
     postal_code: str | None = None,
     start_date_from: str | None = None,
     start_date_to: str | None = None,
+    end_date_from: str | None = None,
+    end_date_to: str | None = None,
     amount_min: str | None = None,
     amount_max: str | None = None,
     search: str | None = None,
@@ -124,6 +135,7 @@ def explore_table_partial(
     filters = _build_filters(
         department, program, postal_code,
         start_date_from, start_date_to,
+        end_date_from, end_date_to,
         amount_min, amount_max, search,
     )
     result = qs.search_records(filters=filters, sort=sort, direction=dir, page=page, per_page=per_page)

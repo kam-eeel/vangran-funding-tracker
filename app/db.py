@@ -160,6 +160,10 @@ class RecordQueryService:
             stmt = stmt.where(Record.start_date >= filters["start_date_from"])
         if filters.get("start_date_to"):
             stmt = stmt.where(Record.start_date <= filters["start_date_to"])
+        if filters.get("end_date_from"):
+            stmt = stmt.where(Record.end_date >= filters["end_date_from"])
+        if filters.get("end_date_to"):
+            stmt = stmt.where(Record.end_date <= filters["end_date_to"])
         if filters.get("amount_min") is not None:
             try:
                 stmt = stmt.where(Record.amount >= float(filters["amount_min"]))
@@ -356,6 +360,10 @@ class RecordQueryService:
             stmt = stmt.where(Record.start_date >= filters["start_date_from"])
         if filters.get("start_date_to"):
             stmt = stmt.where(Record.start_date <= filters["start_date_to"])
+        if filters.get("end_date_from"):
+            stmt = stmt.where(Record.end_date >= filters["end_date_from"])
+        if filters.get("end_date_to"):
+            stmt = stmt.where(Record.end_date <= filters["end_date_to"])
         if filters.get("amount_min") is not None:
             try:
                 stmt = stmt.where(Record.amount >= float(filters["amount_min"]))
