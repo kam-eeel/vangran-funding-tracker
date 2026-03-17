@@ -134,10 +134,11 @@
 
         L.polygon(RIDING_BOUNDARY, {
             color: PRIMARY,
-            weight: 2,
+            weight: 3,
+            opacity: 0.7,
             fillColor: PRIMARY,
-            fillOpacity: 0.05,
-            dashArray: '6 4',
+            fillOpacity: 0.08,
+            interactive: false,
         }).addTo(map);
 
         const res = await fetch('/api/map-points?' + params.toString());
