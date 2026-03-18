@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from starlette.requests import Request as StarletteRequest
 
 from app.db import RecordQueryService
 from app.web.deps import get_query_service, get_templates
+from app.web.limiter import limiter
 
 router = APIRouter()
 
@@ -63,6 +65,7 @@ def _short_department(name: str) -> str:
 PER_PAGE_OPTIONS = [50, 100, 250, 500]
 
 
+@limiter.limit("30/minute")
 @router.get("/explore", response_class=HTMLResponse)
 def explore_page(
     request: Request,
@@ -111,6 +114,7 @@ def explore_page(
     return templates.TemplateResponse("explore.html", ctx)
 
 
+@limiter.limit("30/minute")
 @router.get("/explore/partials/table", response_class=HTMLResponse)
 def explore_table_partial(
     request: Request,
@@ -157,6 +161,7 @@ def explore_table_partial(
     return templates.TemplateResponse("partials/records_table.html", ctx)
 
 
+@limiter.limit("30/minute")
 @router.get("/explore/partials/record/{record_id}", response_class=HTMLResponse)
 def explore_record_detail(
     record_id: int,

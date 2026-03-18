@@ -74,7 +74,7 @@ def get_coords_from_postal_code(postal_code: str) -> tuple[float, float]:
             "types": "postcode",
             "proximity": "-123.13,49.25",
         }
-        r = requests.get(BASE_URL, params=params)
+        r = requests.get(BASE_URL, params=params, timeout=10)
         r.raise_for_status()
         last_response = json.loads(r.text)
         time.sleep(0.15)
