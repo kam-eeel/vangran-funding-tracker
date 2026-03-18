@@ -126,8 +126,9 @@ def collect_records(
     cache = postal_code_cache or {}
     inputs = os.listdir(TMP_DIR)
     result = CollectResult()
+    seen: set[tuple[str, str, str]] = set()
     n_files = len(inputs)
-    cached_outside = coord_filter = date_filter = 0
+    cached_outside = coord_filter = date_filter = duplicates = 0
     collected = total_records = 0
     for file in inputs:
         print(f"Parsing records from {file}...")
@@ -142,6 +143,12 @@ def collect_records(
                 }
                 postal_code = record["recipient_postal_code"]
                 assert isinstance(postal_code, str)
+
+                key = (str(record["ref_number"]), postal_code, str(record.get("agreement_start_date", "")))
+                if key in seen:
+                    duplicates += 1
+                    continue
+                seen.add(key)
 
                 if postal_code in cache:
                     lat, lng, in_riding_flag = cache[postal_code]
@@ -169,11 +176,12 @@ def collect_records(
                 ct += 1
         print(f"Collected {ct}/{total} records from {file}.")
         collected += ct
-    rejected_total = cached_outside + coord_filter + date_filter
+    rejected_total = cached_outside + coord_filter + date_filter + duplicates
     print(
         f"\nParsing complete! {collected} records collected out of "
         f"{total_records} total records found in {n_files} files."
-        f"\nFilter stats: {cached_outside} (cached outside riding) + "
+        f"\nFilter stats: {duplicates} (duplicates) + "
+        f"{cached_outside} (cached outside riding) + "
         f"{coord_filter} (outside riding) + {date_filter} (pre-2021) "
         f"= {rejected_total}/{total_records} rejected."
     )

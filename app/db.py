@@ -4,7 +4,7 @@ from datetime import date, datetime
 from math import ceil
 from typing import Any
 from collections.abc import Generator
-from sqlalchemy import create_engine, select, func, event, cast, String, case
+from sqlalchemy import create_engine, select, func, event, cast, String, case, text
 from sqlalchemy.orm import Session, sessionmaker
 from contextlib import contextmanager
 
@@ -117,7 +117,7 @@ class RecordRepo:
                     Record.postal_code == postal_code,
                     Record.start_date == start_date,
                 )
-            ).scalar_one_or_none()
+            ).scalars().first()
 
             if existing is None:
                 rcd = Record(
@@ -148,6 +148,16 @@ class RecordRepo:
 
             existing.last_updated = datetime.now()
             return "updated"
+
+    def deduplicate_records(self) -> int:
+        """Remove duplicate rows, keeping the lowest id per (ref_n, postal_code, start_date)."""
+        with self.db.session() as s:
+            result = s.execute(text(
+                "DELETE FROM records WHERE id NOT IN ("
+                "  SELECT MIN(id) FROM records GROUP BY ref_n, postal_code, start_date"
+                ")"
+            ))
+            return result.rowcount  # type: ignore[union-attr]
 
     def get(self, _id: int) -> Record | None:
         with self.db.session() as s:

@@ -61,6 +61,10 @@ def _collect_and_upsert(repo: RecordRepo) -> dict[str, int]:
     import shutil
     from app import dataset
 
+    removed = repo.deduplicate_records()
+    if removed:
+        logger.info("Removed %d duplicate records from database", removed)
+
     postal_code_cache = repo.load_postal_code_cache()
     result = dataset.collect_records(postal_code_cache=postal_code_cache)
 
