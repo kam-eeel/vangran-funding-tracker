@@ -1,106 +1,164 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Vangran Funding Tracker{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#d71920',
-                        accent: {
-                            blue: '#4078f2',
-                            cyan: '#0184bc',
-                            green: '#50a14f',
-                            yellow: '#c18401',
-                            red: '#d71920',
-                            purple: '#a626a4',
-                            orange: '#986801',
-                        },
-                    },
-                    borderRadius: {
-                        DEFAULT: '4px',
-                    }
-                }
-            }
-        }
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#d71920",
+              accent: {
+                blue: "#4078f2",
+                cyan: "#0184bc",
+                green: "#50a14f",
+                yellow: "#c18401",
+                red: "#d71920",
+                purple: "#a626a4",
+                orange: "#986801",
+              },
+            },
+            borderRadius: {
+              DEFAULT: "4px",
+            },
+          },
+        },
+      };
     </script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-    <link rel="stylesheet" href="/static/css/app.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <link rel="stylesheet" href="/static/css/app.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      crossorigin=""
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      crossorigin=""
+    ></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-</head>
-<body class="bg-white text-gray-900 min-h-screen flex flex-col">
+  </head>
+  <body class="bg-white text-gray-900 min-h-screen flex flex-col">
     <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-12">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-7 h-7 rounded bg-primary flex items-center justify-center">
-                        <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </div>
-                    <span class="font-semibold text-sm tracking-wide uppercase hidden sm:block">Vangran</span>
-                </div>
-                <div class="flex items-center gap-1">
-                    <a href="/"
-                       class="px-3 py-1 rounded text-sm font-medium transition-colors
-                              {% if request.url.path == '/' %}bg-primary/10 text-primary{% else %}text-gray-500 hover:text-gray-900 hover:bg-gray-100{% endif %}">
-                        Dashboard
-                    </a>
-                    <a href="/map"
-                       class="px-3 py-1 rounded text-sm font-medium transition-colors
-                              {% if request.url.path.startswith('/map') %}bg-primary/10 text-primary{% else %}text-gray-500 hover:text-gray-900 hover:bg-gray-100{% endif %}">
-                        Map
-                    </a>
-                    <a href="/explore"
-                       class="px-3 py-1 rounded text-sm font-medium transition-colors
-                              {% if request.url.path.startswith('/explore') %}bg-primary/10 text-primary{% else %}text-gray-500 hover:text-gray-900 hover:bg-gray-100{% endif %}">
-                        Explore
-                    </a>
-                </div>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-12">
+          <div class="flex items-center gap-2.5">
+            <div
+              class="w-7 h-7 rounded bg-primary flex items-center justify-center"
+            >
+              <svg
+                class="w-4 h-4 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
             </div>
+            <span
+              class="font-semibold text-sm tracking-wide uppercase hidden sm:block"
+              >VANGRAN FEDERAL FUNDING TRACKER</span
+            >
+          </div>
+          <div class="flex items-center gap-1">
+            <a
+              href="/"
+              class="px-3 py-1 rounded text-sm font-medium transition-colors {% if request.url.path == '/' %}bg-primary/10 text-primary{% else %}text-gray-500 hover:text-gray-900 hover:bg-gray-100{% endif %}"
+            >
+              Dashboard
+            </a>
+            <a
+              href="/map"
+              class="px-3 py-1 rounded text-sm font-medium transition-colors {% if request.url.path.startswith('/map') %}bg-primary/10 text-primary{% else %}text-gray-500 hover:text-gray-900 hover:bg-gray-100{% endif %}"
+            >
+              Map
+            </a>
+            <a
+              href="/explore"
+              class="px-3 py-1 rounded text-sm font-medium transition-colors {% if request.url.path.startswith('/explore') %}bg-primary/10 text-primary{% else %}text-gray-500 hover:text-gray-900 hover:bg-gray-100{% endif %}"
+            >
+              Explore
+            </a>
+          </div>
         </div>
+      </div>
     </nav>
 
-    <div id="loading-bar" class="htmx-indicator fixed top-0 left-0 right-0 z-[60]">
-        <div class="h-0.5 bg-primary animate-pulse"></div>
+    <div
+      id="loading-bar"
+      class="htmx-indicator fixed top-0 left-0 right-0 z-[60]"
+    >
+      <div class="h-0.5 bg-primary animate-pulse"></div>
     </div>
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {% block content %}{% endblock %}
+      {% block content %}{% endblock %}
     </main>
 
     <footer class="border-t border-gray-100 mt-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
-            <span>Data source: <a href="https://open.canada.ca/data/en/dataset/432527ab-7aac-45b5-81d6-7597107a7013" target="_blank" rel="noopener" class="underline hover:text-gray-600">Government of Canada — Proactive Disclosure of Grants and Contributions</a></span>
-            {% set lu = last_updated() %}
-            {% if lu %}<span>Last updated: {{ lu }}</span>{% endif %}
-        </div>
+      <div
+        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400"
+      >
+        <span
+          >Data source:
+          <a
+            href="https://open.canada.ca/data/en/dataset/432527ab-7aac-45b5-81d6-7597107a7013"
+            target="_blank"
+            rel="noopener"
+            class="underline hover:text-gray-600"
+            >Government of Canada — Proactive Disclosure of Grants and
+            Contributions</a
+          ></span
+        >
+        {% set lu = last_updated() %} {% if lu %}<span
+          >Last updated: {{ lu }}</span
+        >{% endif %}
+      </div>
     </footer>
 
     {% block scripts %}{% endblock %}
 
     <!-- Record detail modal (shared across pages) -->
-    <div id="record-modal" class="hidden fixed inset-0 z-[1000] flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('record-modal').classList.add('hidden')"></div>
-        <div id="record-modal-content" class="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-white rounded shadow-xl">
-            <!-- Content loaded by HTMX or fetch -->
-        </div>
+    <div
+      id="record-modal"
+      class="hidden fixed inset-0 z-[1000] flex items-center justify-center p-4"
+    >
+      <div
+        class="absolute inset-0 bg-black/40"
+        onclick="
+          document.getElementById('record-modal').classList.add('hidden')
+        "
+      ></div>
+      <div
+        id="record-modal-content"
+        class="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-white rounded shadow-xl"
+      >
+        <!-- Content loaded by HTMX or fetch -->
+      </div>
     </div>
     <script>
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                document.getElementById('record-modal').classList.add('hidden');
-            }
-        });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+          document.getElementById("record-modal").classList.add("hidden");
+        }
+      });
     </script>
-</body>
+  </body>
 </html>
