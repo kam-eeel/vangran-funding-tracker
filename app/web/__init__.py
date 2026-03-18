@@ -37,7 +37,7 @@ def create_app() -> FastAPI:
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com; "
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com; "
-            "img-src 'self' data: https://*.tile.openstreetmap.org; "
+            "img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org; "
             "connect-src 'self'; "
             "frame-ancestors 'none'"
         )
