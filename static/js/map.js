@@ -69,12 +69,20 @@
         return dept;
     }
 
+    function el(tag, className, text) {
+        const e = document.createElement(tag);
+        e.className = className;
+        if (text) e.textContent = text;
+        return e;
+    }
+
     async function openRecordModal(recordId) {
         const modal = document.getElementById('record-modal');
         const content = document.getElementById('record-modal-content');
         if (!modal || !content) return;
         const res = await fetch(`/explore/partials/record/${recordId}`);
         if (!res.ok) return;
+        if (!(res.headers.get('content-type') || '').includes('text/html')) return;
         content.innerHTML = await res.text();
         modal.classList.remove('hidden');
     }
@@ -85,14 +93,13 @@
         item.dataset.id = pt.id;
 
         const amtColor = (pt.amount !== null && pt.amount < 0) ? 'text-red-600' : 'text-green-700';
-        item.innerHTML = `
-            <p class="text-xs font-medium text-gray-900 truncate leading-snug">${pt.recipient_name}</p>
-            <div class="flex items-center gap-2 mt-0.5">
-                <span class="text-xs font-mono font-semibold ${amtColor}">${formatCurrency(pt.amount)}</span>
-                <span class="text-[10px] font-mono text-gray-400">${pt.postal_code || ''}</span>
-            </div>
-            <p class="text-[10px] text-gray-400 truncate mt-0.5">${shortDept(pt.department)}</p>
-        `;
+
+        item.appendChild(el('p', 'text-xs font-medium text-gray-900 truncate leading-snug', pt.recipient_name));
+        const row = el('div', 'flex items-center gap-2 mt-0.5');
+        row.appendChild(el('span', 'text-xs font-mono font-semibold ' + amtColor, formatCurrency(pt.amount)));
+        row.appendChild(el('span', 'text-[10px] font-mono text-gray-400', pt.postal_code || ''));
+        item.appendChild(row);
+        item.appendChild(el('p', 'text-[10px] text-gray-400 truncate mt-0.5', shortDept(pt.department)));
 
         item.addEventListener('click', () => {
             map.setView([pt.lat, pt.lng], 15, { animate: true });

@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from starlette.requests import Request as StarletteRequest
 
 from app.db import RecordQueryService
 from app.web.deps import get_query_service, get_templates
+from app.web.limiter import limiter
 
 router = APIRouter()
 
@@ -61,8 +63,10 @@ def dashboard_page(
     )
 
 
+@limiter.limit("30/minute")
 @router.get("/api/charts/department")
 def chart_department(
+    request: Request,
     qs: RecordQueryService = Depends(get_query_service),
     department: str | None = None,
     program: str | None = None,
@@ -72,7 +76,7 @@ def chart_department(
     amount_min: str | None = None,
     amount_max: str | None = None,
     search: str | None = None,
-    limit: int = 10,
+    limit: int = Query(default=10, ge=1, le=100),
 ):
     filters = _build_filters(department, program, postal_code, start_date_from, start_date_to, amount_min, amount_max, search)
     data = qs.get_funding_by_department(limit=limit, filters=filters)
@@ -84,8 +88,10 @@ def chart_department(
     }
 
 
+@limiter.limit("30/minute")
 @router.get("/api/charts/program")
 def chart_program(
+    request: Request,
     qs: RecordQueryService = Depends(get_query_service),
     department: str | None = None,
     program: str | None = None,
@@ -95,7 +101,7 @@ def chart_program(
     amount_min: str | None = None,
     amount_max: str | None = None,
     search: str | None = None,
-    limit: int = 10,
+    limit: int = Query(default=10, ge=1, le=100),
 ):
     filters = _build_filters(department, program, postal_code, start_date_from, start_date_to, amount_min, amount_max, search)
     data = qs.get_funding_by_program(limit=limit, filters=filters)
@@ -106,8 +112,10 @@ def chart_program(
     }
 
 
+@limiter.limit("30/minute")
 @router.get("/api/charts/postal")
 def chart_postal(
+    request: Request,
     qs: RecordQueryService = Depends(get_query_service),
     department: str | None = None,
     program: str | None = None,
@@ -127,8 +135,10 @@ def chart_postal(
     }
 
 
+@limiter.limit("30/minute")
 @router.get("/api/charts/timeline")
 def chart_timeline(
+    request: Request,
     qs: RecordQueryService = Depends(get_query_service),
     department: str | None = None,
     program: str | None = None,
@@ -187,8 +197,10 @@ def chart_expand_page(
     })
 
 
+@limiter.limit("20/minute")
 @router.get("/api/map-points")
 def map_points(
+    request: Request,
     qs: RecordQueryService = Depends(get_query_service),
     department: str | None = None,
     program: str | None = None,

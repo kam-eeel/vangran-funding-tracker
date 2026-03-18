@@ -92,7 +92,7 @@ def download_by_postal() -> None:
         try:
             print(f"Downloading data for postal code {fsa}...")
 
-            r = requests.get(URL, stream=True, params=params)
+            r = requests.get(URL, stream=True, params=params, timeout=(10, 120))
             r.raise_for_status()
             with open(f"{TMP_DIR}/{fsa}.json", "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):

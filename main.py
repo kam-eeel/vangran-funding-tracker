@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import signal
 import sys
 import logging
 from datetime import date
@@ -137,6 +138,9 @@ def run_server() -> None:
     from apscheduler.triggers.cron import CronTrigger  # type: ignore[import-untyped]
     from app.web import create_app
 
+    if not os.environ.get("MAPBOX_ACCESS_TOKEN"):
+        logger.warning("MAPBOX_ACCESS_TOKEN is not set — map geocoding will not work")
+
     app = create_app()
 
     with app.state.db.session() as s:
@@ -157,6 +161,13 @@ def run_server() -> None:
     )
     scheduler.start()
     logger.info("Scheduler started — weekly update scheduled for Sundays at 6am")
+
+    def _shutdown(signum, frame):
+        logger.info("Received signal %s, shutting down scheduler", signum)
+        scheduler.shutdown(wait=False)
+
+    signal.signal(signal.SIGTERM, _shutdown)
+    signal.signal(signal.SIGINT, _shutdown)
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
 

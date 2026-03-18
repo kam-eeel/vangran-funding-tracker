@@ -247,30 +247,79 @@
             const thCls = (col, align='left') =>
                 `px-3 py-2 text-${align} text-[10px] font-semibold uppercase tracking-wider cursor-pointer select-none whitespace-nowrap text-gray-500 hover:text-primary ${sortCol === col ? 'text-primary' : ''}`;
 
-            const tbody = sorted().map(r => {
-                const pct = total > 0 ? (r.total / total * 100).toFixed(1) : '0.0';
-                return `<tr class="hover:bg-gray-50 border-b border-gray-100">
-                    <td class="px-3 py-2 text-xs text-gray-800 break-words max-w-xs">${r.name || '—'}</td>
-                    <td class="px-3 py-2 text-xs text-right font-mono font-medium text-accent-green whitespace-nowrap">${formatCurrency(r.total)}</td>
-                    <td class="px-3 py-2 text-xs text-right font-mono text-gray-500 whitespace-nowrap">${r.count.toLocaleString()}</td>
-                    <td class="px-3 py-2 text-xs text-right font-mono text-gray-400 whitespace-nowrap">${pct}%</td>
-                </tr>`;
-            }).join('');
+            container.textContent = '';
 
-            container.innerHTML = `
-                <div class="bg-white rounded border border-gray-200 overflow-hidden">
-                    <table class="w-full text-xs">
-                        <thead class="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th class="${thCls('name')}" data-col="name">${nameLabel} ${icon('name')}</th>
-                                <th class="${thCls('total','right')}" data-col="total">Total Funding ${icon('total')}</th>
-                                <th class="${thCls('count','right')}" data-col="count">Contributions ${icon('count')}</th>
-                                <th class="${thCls('total','right')}">% of Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>${tbody}</tbody>
-                    </table>
-                </div>`;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'bg-white rounded border border-gray-200 overflow-hidden';
+
+            const table = document.createElement('table');
+            table.className = 'w-full text-xs';
+
+            const thead = document.createElement('thead');
+            thead.className = 'bg-gray-50 border-b border-gray-200';
+            const headerRow = document.createElement('tr');
+
+            const thName = document.createElement('th');
+            thName.className = thCls('name');
+            thName.textContent = nameLabel;
+            thName.insertAdjacentHTML('beforeend', ' ' + icon('name'));
+            thName.dataset.col = 'name';
+            headerRow.appendChild(thName);
+
+            const thTotal = document.createElement('th');
+            thTotal.className = thCls('total', 'right');
+            thTotal.textContent = 'Total Funding';
+            thTotal.insertAdjacentHTML('beforeend', ' ' + icon('total'));
+            thTotal.dataset.col = 'total';
+            headerRow.appendChild(thTotal);
+
+            const thCount = document.createElement('th');
+            thCount.className = thCls('count', 'right');
+            thCount.textContent = 'Contributions';
+            thCount.insertAdjacentHTML('beforeend', ' ' + icon('count'));
+            thCount.dataset.col = 'count';
+            headerRow.appendChild(thCount);
+
+            const thPct = document.createElement('th');
+            thPct.className = thCls('total', 'right');
+            thPct.textContent = '% of Total';
+            headerRow.appendChild(thPct);
+
+            thead.appendChild(headerRow);
+
+            const tbody = document.createElement('tbody');
+            sorted().forEach(r => {
+                const pct = total > 0 ? (r.total / total * 100).toFixed(1) : '0.0';
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50 border-b border-gray-100';
+
+                const tdName = document.createElement('td');
+                tdName.className = 'px-3 py-2 text-xs text-gray-800 break-words max-w-xs';
+                tdName.textContent = r.name || '\u2014';
+                tr.appendChild(tdName);
+
+                const tdTotal = document.createElement('td');
+                tdTotal.className = 'px-3 py-2 text-xs text-right font-mono font-medium text-accent-green whitespace-nowrap';
+                tdTotal.textContent = formatCurrency(r.total);
+                tr.appendChild(tdTotal);
+
+                const tdCount = document.createElement('td');
+                tdCount.className = 'px-3 py-2 text-xs text-right font-mono text-gray-500 whitespace-nowrap';
+                tdCount.textContent = r.count.toLocaleString();
+                tr.appendChild(tdCount);
+
+                const tdPct = document.createElement('td');
+                tdPct.className = 'px-3 py-2 text-xs text-right font-mono text-gray-400 whitespace-nowrap';
+                tdPct.textContent = pct + '%';
+                tr.appendChild(tdPct);
+
+                tbody.appendChild(tr);
+            });
+
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            wrapper.appendChild(table);
+            container.appendChild(wrapper);
 
             container.querySelectorAll('th[data-col]').forEach(th => {
                 th.addEventListener('click', () => {
