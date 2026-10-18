@@ -1,0 +1,1 @@
+A simple tracker & dashboard that tracks Canadian federal government funding to the federal riding of Vancouver-Granville by parsing the [Open Government Portal's](https://open.canada.ca/en) Grants and Contributions dataset.
